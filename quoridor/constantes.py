@@ -1,0 +1,12 @@
+import pygame
+
+LARGURA, ALTURA = 800, 800
+LINHAS, COLUNAS = 9, 9
+LACUNA_TAMANHO = LARGURA//COLUNAS
+
+# rgb
+RED = (255, 0, 0)
+GREEN = (0, 255, 0) 
+BLUE = (0, 0, 255)
+WHITE = (255, 255, 255)
+BLACK = (0, 0, 0)
