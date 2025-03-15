@@ -20,7 +20,7 @@ def main():
             if event.type == pygame.MOUSEBUTTONDOWN:
                 pass
 
-        tabuleiro.desenha_grid(WIN)
+        tabuleiro.desenha(WIN)
         pygame.display.update()
 
     pygame.quit()
