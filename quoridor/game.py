@@ -2,57 +2,75 @@ class JogoQuoridor:
     def __init__(self):
         # Posições dos jogadores (tabuleiro 9x9)
         self.jogadores = {
-            'J1': (0, 4),  # Posição inicial (linha, coluna)
-            'J2': (8, 4)
+            "J1": (0, 4),  # Posição inicial (linha, coluna)
+            "J2": (8, 4)   
         }
-        
-        # Posições das paredes (grades 8x8)
-        self.paredes_horizontais = [[False]*8 for _ in range(8)]  # Paredes horizontais entre as linhas
-        self.paredes_verticais = [[False]*8 for _ in range(8)]  # Paredes verticais entre as colunas
 
-    def colocar_parede(self, notacao):
+        # Grades 8x8 para paredes
+        self.paredes_horizontais = [[False] * 8 for _ in range(8)]
+        self.paredes_verticais = [[False] * 8 for _ in range(8)]
+
+        # Máximo de 10 paredes por jogador
+        self.paredes_restantes = {"J1": 10, "J2": 10}
+
+    def colocar_parede(self, notacao, turno):
         """Coloca uma parede dada uma notação como 'e7h' ou 'd4v'."""
+
+        if self.paredes_restantes[jogador] <= 0:
+            print(f"{jogador} não tem mais paredes disponíveis!")
+            return False
+
         if len(notacao) != 3:
-            print("Notação inválida! Use o formato como 'e7h' ou 'd4v'.")
-            return
+            print("Notação inválida! Use o formato 'e7h' ou 'd4v'.")
+            return False
 
         letra_coluna, numero_linha, direcao = notacao
-        coluna = ord(letra_coluna) - ord('a')  # Converte 'a' para 0, 'b' para 1, ..., 'i' para 8
-        linha = int(numero_linha) - 1  # Converte '1'-'9' para 0-8
+        coluna = ord(letra_coluna) - ord("a")  # Converte 'a' para 0, ..., 'i' para 8
+        linha = int(numero_linha) - 1          # Converte '1'-'9' para 0-8
 
-        if direcao == 'h':  # Parede horizontal
-            if linha > 0 and coluna < 7:  # Deve estar dentro da grade 8x8
-                self.paredes_horizontais[linha-1][coluna] = True
-                self.paredes_horizontais[linha-1][coluna+1] = True
+        if direcao == "h":  # Parede horizontal
+            if linha > 0 and coluna < 7:  
+                if self.paredes_horizontais[linha - 1][coluna]:
+                    print("Já existe uma parede aqui!")
+                    return False
+                self.paredes_horizontais[linha - 1][coluna] = True
+                self.paredes_horizontais[linha - 1][coluna + 1] = True
             else:
-                print("Posição inválida para parede horizontal")
-        
-        elif direcao == 'v':  # Parede vertical
-            if linha < 7 and coluna > 0:  # Deve estar dentro da grade 8x8
-                self.paredes_verticais[linha][coluna-1] = True
-                self.paredes_verticais[linha+1][coluna-1] = True
+                print("Posição inválida para parede horizontal!")
+                return False
+
+        elif direcao == "v":  # Parede vertical
+            if linha < 7 and coluna > 0:  
+                if self.paredes_verticais[linha][coluna - 1]:
+                    print("Já existe uma parede aqui!")
+                    return False
+                self.paredes_verticais[linha][coluna - 1] = True
+                self.paredes_verticais[linha + 1][coluna - 1] = True
             else:
-                print("Posição inválida para parede vertical")
+                print("Posição inválida para parede vertical!")
+                return False
 
         else:
             print("Direção inválida! Use 'h' para horizontal ou 'v' para vertical.")
+            return False
+
+        self.paredes_restantes[jogador] -= 1
+        print(f"{jogador} agora tem {self.paredes_restantes[jogador]} paredes restantes.")
+        return True
 
     def imprimir_tabuleiro(self):
-        print("   " + " ".join(f" {chr(97+i)} " for i in range(9)))  # Rótulos das colunas a-i
+        print("   " + " ".join(f" {chr(97+i)} " for i in range(9)))  # Rótulos das colunas
         
         for linha in range(9):
-            # Imprime a linha dos jogadores com paredes verticais
-            linha_str = f"{linha+1} "  # Números das linhas 1-9
+            linha_str = f"{linha+1} "  # Números das linhas
             for coluna in range(9):
-                # Jogador ou espaço vazio
-                if (linha, coluna) == self.jogadores['J1']:
+                if (linha, coluna) == self.jogadores["J1"]:
                     linha_str += " J1 "
-                elif (linha, coluna) == self.jogadores['J2']:
+                elif (linha, coluna) == self.jogadores["J2"]:
                     linha_str += " J2 "
                 else:
                     linha_str += " · "
                 
-                # Parede vertical à direita da célula atual
                 if coluna < 8 and linha < 8 and self.paredes_verticais[linha][coluna]:
                     linha_str += "│"
                 else:
@@ -60,17 +78,14 @@ class JogoQuoridor:
             
             print(linha_str)
             
-            # Imprime paredes horizontais entre as linhas (apenas até a linha 7)
             if linha < 8:
                 linha_paredes = "  "
                 for coluna in range(9):
-                    # Parede horizontal abaixo da célula atual
                     if coluna < 8 and self.paredes_horizontais[linha][coluna]:
                         linha_paredes += "───"
                     else:
                         linha_paredes += "   "
                     
-                    # Marcador de interseção
                     if coluna < 8 and (self.paredes_horizontais[linha][coluna] or self.paredes_verticais[linha][coluna]):
                         linha_paredes += "┼"
                     else:
@@ -78,58 +93,56 @@ class JogoQuoridor:
                 
                 print(linha_paredes)
 
-    def andar(self, direcao,turno):
-        jogador = 'J1' if turno == 0 else 'J2'  # Define o jogador atual
-        linha, coluna = self.jogadores[jogador]  # Obtém a posição atual do jogador
+    def andar(self, direcao, turno):
+        jogador = "J1" if turno == 0 else "J2"
+        linha, coluna = self.jogadores[jogador]
 
-        # Direções de movimento
         movimentos = {
-            'w': (-1, 0),  # Cima
-            's': (1, 0),   # Baixo
-            'a': (0, -1),  # Esquerda
-            'd': (0, 1)    # Direita
+            "w": (-1, 0),  # Cima
+            "s": (1, 0),   # Baixo
+            "a": (0, -1),  # Esquerda
+            "d": (0, 1)    # Direita
         }
 
         if direcao not in movimentos:
             print("Movimento inválido! Use 'w', 'a', 's' ou 'd'.")
-            return
+            return False
 
         d_linha, d_coluna = movimentos[direcao]
         nova_linha, nova_coluna = linha + d_linha, coluna + d_coluna
 
-        # Verifica os limites do tabuleiro
         if not (0 <= nova_linha < 9 and 0 <= nova_coluna < 9):
             print("Movimento fora dos limites!")
-            return
+            return False
 
-        # Verifica se há uma parede bloqueando o caminho
-        if direcao == 'w' and linha > 0 and self.paredes_horizontais[linha - 1][coluna]:  # Movimento para cima
+        if direcao == "w" and linha > 0 and self.paredes_horizontais[linha - 1][coluna]:
             print("Há uma parede bloqueando o caminho!")
-            return
-        if direcao == 's' and self.paredes_horizontais[linha][coluna]:  # Movimento para baixo
+            return False
+        if direcao == "s" and self.paredes_horizontais[linha][coluna]:
             print("Há uma parede bloqueando o caminho!")
-            return
-        if direcao == 'a' and coluna > 0 and self.paredes_verticais[linha][coluna - 1]:  # Movimento para a esquerda
+            return False
+        if direcao == "a" and coluna > 0 and self.paredes_verticais[linha][coluna - 1]:
             print("Há uma parede bloqueando o caminho!")
-            return
-        if direcao == 'd' and self.paredes_verticais[linha][coluna]:  # Movimento para a direita
+            return False
+        if direcao == "d" and self.paredes_verticais[linha][coluna]:
             print("Há uma parede bloqueando o caminho!")
-            return
+            return False
 
-        # Atualiza a posição do jogador
         self.jogadores[jogador] = (nova_linha, nova_coluna)
+        return True
+
     def verificar_vitoria(self):
-        if self.jogadores['J1'][0] == 8:  
+        if self.jogadores["J1"][0] == 8:  
             print("Player 1 venceu!")
             return True
-        if self.jogadores['J2'][0] == 0:   
+        if self.jogadores["J2"][0] == 0:   
             print("Player 2 venceu!")
             return True
         return False 
 
-# Cria o jogo
-jogo = JogoQuoridor()
 
+# Início do jogo
+jogo = JogoQuoridor()
 game_over = False
 turn = 0  # 0 = Player 1, 1 = Player 2
 
@@ -140,21 +153,22 @@ while not game_over:
     print(f"Turno atual: {player}")
 
     tipo_jogada = input("Escolha: Andar (2) ou Colocar Parede (1)? ")
-    
-    if tipo_jogada == "1":  # Coloca uma parede
+
+    if tipo_jogada == "1":
         parede_input = input("Digite a posição da parede (ex: e7h): ")
-        jogo.colocar_parede(parede_input)
-    
-    elif tipo_jogada == "2":  # Anda
+        if not jogo.colocar_parede(parede_input, turn):
+            continue  
+
+    elif tipo_jogada == "2":
         movimento_input = input("Digite o movimento (ex: w, a, s, d): ")
-    
+        if not jogo.andar(movimento_input, turn):
+            continue  
+
     else:
         print("Entrada inválida. Escolha 1 (Parede) ou 2 (Andar).")
         continue
 
-    # Check for game over condition (e.g., if a player reaches the opposite side)
     if jogo.verificar_vitoria():
         game_over = True
 
-    # Faz a troca de turnos 
     turn = (turn + 1) % 2
