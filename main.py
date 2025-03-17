@@ -1,25 +1,33 @@
-import pygame
-from quoridor.constantes import LARGURA, ALTURA
+from quoridor.game import JogoQuoridor
 
-FPS = 60
-WIN = pygame.display.set_mode((LARGURA,ALTURA))
-pygame.display.set_caption('Quoridor')
+# Início do jogo
+jogo = JogoQuoridor()
+game_over = False
+turn = 0  # 0 = Player 1, 1 = Player 2
 
-def main():
-    run = True
-    clock = pygame.time.Clock()
+while not game_over:
+    jogo.imprimir_tabuleiro()
+    
+    player = "Player 1" if turn == 0 else "Player 2"
+    print(f"Turno atual: {player}")
 
-    while run:
-        clock.tick(FPS)
-        
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                run = False
-            if event.type == pygame.MOUSEBUTTONDOWN:
-                pass
+    tipo_jogada = input("Escolha: Andar (2) ou Colocar Parede (1)? ")
 
-        pygame.display.update()
+    if tipo_jogada == "1":
+        parede_input = input("Digite a posição da parede (ex: e7h): ")
+        if not jogo.colocar_parede(parede_input, turn):
+            continue  
 
-    pygame.quit()
+    elif tipo_jogada == "2":
+        movimento_input = input("Digite o movimento (ex: w, a, s, d): ")
+        if not jogo.andar(movimento_input, turn):
+            continue  
 
-main()
+    else:
+        print("Entrada inválida. Escolha 1 (Parede) ou 2 (Andar).")
+        continue
+
+    if jogo.verificar_vitoria():
+        game_over = True
+
+    turn = (turn + 1) % 2

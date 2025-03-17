@@ -15,6 +15,7 @@ class JogoQuoridor:
 
     def colocar_parede(self, notacao, turno):
         """Coloca uma parede dada uma notação como 'e7h' ou 'd4v'."""
+        jogador = "J1" if turno == 0 else "J2" 
 
         if self.paredes_restantes[jogador] <= 0:
             print(f"{jogador} não tem mais paredes disponíveis!")
@@ -139,36 +140,3 @@ class JogoQuoridor:
             print("Player 2 venceu!")
             return True
         return False 
-
-
-# Início do jogo
-jogo = JogoQuoridor()
-game_over = False
-turn = 0  # 0 = Player 1, 1 = Player 2
-
-while not game_over:
-    jogo.imprimir_tabuleiro()
-    
-    player = "Player 1" if turn == 0 else "Player 2"
-    print(f"Turno atual: {player}")
-
-    tipo_jogada = input("Escolha: Andar (2) ou Colocar Parede (1)? ")
-
-    if tipo_jogada == "1":
-        parede_input = input("Digite a posição da parede (ex: e7h): ")
-        if not jogo.colocar_parede(parede_input, turn):
-            continue  
-
-    elif tipo_jogada == "2":
-        movimento_input = input("Digite o movimento (ex: w, a, s, d): ")
-        if not jogo.andar(movimento_input, turn):
-            continue  
-
-    else:
-        print("Entrada inválida. Escolha 1 (Parede) ou 2 (Andar).")
-        continue
-
-    if jogo.verificar_vitoria():
-        game_over = True
-
-    turn = (turn + 1) % 2
