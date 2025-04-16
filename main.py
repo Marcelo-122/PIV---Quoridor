@@ -14,7 +14,7 @@ while not game_over:
     tipo_jogada = input("Escolha: Andar (2) ou Colocar Parede (1)? ")
 
     if tipo_jogada == "1":
-        parede_input = input("Digite a posição da parede (ex: e7h): ")
+        parede_input = input("Digite a posição da parede (ex: e7h ou d4v): ")
         if not jogo.colocar_parede(parede_input, turn):
             continue  
 
