@@ -11,3 +11,4 @@ def calcular_utilidade(estado, jogador):
         distancia_oponente = abs(posicao_j1[0] - objetivo_j1)
 
     return -distancia_jogador + distancia_oponente
+# Função de utilidade traduzida para português.
