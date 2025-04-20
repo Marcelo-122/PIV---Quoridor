@@ -17,14 +17,14 @@ while not jogo_terminado:
     if tipo_jogada == "1":
         parede_input = input("Digite a posição da parede (ex: e7h): ")
         if not jogo.colocar_parede(parede_input, turno):
-            if not existe_caminho('J1', jogo.jogadores['J1'][0], jogo.jogadores['J1'][1], jogo.board):
+            if not existe_caminho('J1', jogo.jogadores['J1'][0], jogo.jogadores['J1'][1], jogo.tabuleiro):
                 print("Movimento inválido: J1 ficaria preso.")
                 continue  
 
     elif tipo_jogada == "2":
         movimento_input = input("Digite o movimento (ex: w, a, s, d): ")
         if not jogo.andar(movimento_input, turno):
-            if not existe_caminho('J2', jogo.jogadores['J2'][0], jogo.jogadores['J2'][1], jogo.board):
+            if not existe_caminho('J2', jogo.jogadores['J2'][0], jogo.jogadores['J2'][1], jogo.tabuleiro):
                 print("Movimento inválido: J2 ficaria preso.")
                 continue  
 

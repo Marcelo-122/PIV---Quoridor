@@ -15,8 +15,8 @@ class JogoQuoridor:
         # Define as posições iniciais dos jogadores no tabuleiro
         j1_linha, j1_coluna = self.jogadores["J1"]
         j2_linha, j2_coluna = self.jogadores["J2"]
-        self.tabuleiro[j1_linha][j1_coluna].has_player = True
-        self.tabuleiro[j2_linha][j2_coluna].has_player = True
+        self.tabuleiro[j1_linha][j1_coluna].tem_jogador = True
+        self.tabuleiro[j2_linha][j2_coluna].tem_jogador = True
 
     def colocar_parede(self, notacao, turno):
         return colocar_parede(self, notacao, turno)
