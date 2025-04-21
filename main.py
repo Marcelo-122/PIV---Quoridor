@@ -1,5 +1,6 @@
 from quoridor.game import JogoQuoridor
 from quoridor.caminho import existe_caminho
+from quoridor.minimax import escolher_movimento_ai
 
 # Início do jogo
 jogo = JogoQuoridor()
@@ -12,25 +13,36 @@ while not jogo_terminado:
     jogador_nome = "Jogador 1" if turno == 0 else "Jogador 2"
     print(f"Turno atual: {jogador_nome}")
 
-    tipo_jogada = input("Escolha: Andar (2) ou Colocar Parede (1)? ")
-
-    if tipo_jogada == "1":
-        parede_input = input("Digite a posição da parede (ex: e7h): ")
-        if not jogo.colocar_parede(parede_input, turno):
-            if not existe_caminho('J1', jogo.jogadores['J1'][0], jogo.jogadores['J1'][1], jogo.tabuleiro):
-                print("Movimento inválido: J1 ficaria preso.")
-                continue  
-
-    elif tipo_jogada == "2":
-        movimento_input = input("Digite o movimento (ex: w, a, s, d): ")
-        if not jogo.andar(movimento_input, turno):
-            if not existe_caminho('J2', jogo.jogadores['J2'][0], jogo.jogadores['J2'][1], jogo.tabuleiro):
-                print("Movimento inválido: J2 ficaria preso.")
-                continue  
-
+    if turno == 1:
+        print("AI está pensando...")
+        movimento = escolher_movimento_ai(jogo, turno, profundidade=2)
+        if movimento is None:
+            print("AI não encontrou movimento válido. Fim de jogo.")
+            break
+        tipo, valor = movimento
+        if tipo == 'move':
+            jogo.andar(valor, turno)
+            print(f"AI moveu: {valor}")
+        elif tipo == 'wall':
+            jogo.colocar_parede(valor, turno)
+            print(f"AI colocou parede: {valor}")
     else:
-        print("Entrada inválida. Escolha 1 (Parede) ou 2 (Andar).")
-        continue
+        tipo_jogada = input("Escolha: Andar (2) ou Colocar Parede (1)? ")
+        if tipo_jogada == "1":
+            parede_input = input("Digite a posição da parede (ex: e7h): ")
+            if not jogo.colocar_parede(parede_input, turno):
+                if not existe_caminho('J1', jogo.jogadores['J1'][0], jogo.jogadores['J1'][1], jogo.tabuleiro):
+                    print("Movimento inválido: J1 ficaria preso.")
+                    continue  
+        elif tipo_jogada == "2":
+            movimento_input = input("Digite o movimento (ex: w, a, s, d): ")
+            if not jogo.andar(movimento_input, turno):
+                if not existe_caminho('J2', jogo.jogadores['J2'][0], jogo.jogadores['J2'][1], jogo.tabuleiro):
+                    print("Movimento inválido: J2 ficaria preso.")
+                    continue  
+        else:
+            print("Entrada inválida. Escolha 1 (Parede) ou 2 (Andar).")
+            continue
 
     if jogo.verificar_vitoria():
         jogo_terminado = True
