@@ -4,12 +4,19 @@ from .utilidade import calcular_utilidade
 from .print import imprimir_tabuleiro
 
 
+from .square import Square
+from .constantes import LINHAS, COLUNAS
+
 class JogoQuoridor:
     def __init__(self):
         self.jogadores = {"J1": (0, 4), "J2": (8, 4)}
-        self.paredes_horizontais = [[False] * 8 for _ in range(8)]
-        self.paredes_verticais = [[False] * 8 for _ in range(8)]
-        self.paredes_restantes = {"J1": 10, "J2": 10}
+        # Apenas usa a matriz do tabuleiro
+        self.tabuleiro = [[Square() for _ in range(COLUNAS)] for _ in range(LINHAS)]
+        # Define as posições iniciais dos jogadores no tabuleiro
+        j1_linha, j1_coluna = self.jogadores["J1"]
+        j2_linha, j2_coluna = self.jogadores["J2"]
+        self.tabuleiro[j1_linha][j1_coluna].tem_jogador = True
+        self.tabuleiro[j2_linha][j2_coluna].tem_jogador = True
 
     def colocar_parede(self, notacao, turno):
         return colocar_parede(self, notacao, turno)
@@ -22,10 +29,10 @@ class JogoQuoridor:
 
     def verificar_vitoria(self):
         if self.jogadores["J1"][0] == 8:
-            print("Player 1 venceu!")
+            print("Jogador 1 venceu!")
             return True
         if self.jogadores["J2"][0] == 0:
-            print("Player 2 venceu!")
+            print("Jogador 2 venceu!")
             return True
         return False
 
@@ -33,10 +40,6 @@ class JogoQuoridor:
         return (
             tuple(self.jogadores["J1"]),
             tuple(self.jogadores["J2"]),
-            tuple(tuple(linha) for linha in self.paredes_horizontais),
-            tuple(tuple(linha) for linha in self.paredes_verticais),
-            self.paredes_restantes["J1"],
-            self.paredes_restantes["J2"],
         )
 
     def calcular_utilidade(self, estado, jogador):
