@@ -1,5 +1,6 @@
 import copy
 from quoridor.caminho import existe_caminho
+from quoridor.utilidade import shortest_path_length
 
 # Representa um movimento: (tipo, valor)
 # tipo: 'move' ou 'wall'
@@ -43,78 +44,220 @@ def aplicar_movimento(jogo, movimento, turno):
         jogo.colocar_parede(valor, turno)
     return jogo
 
-# Minimax simples com profundidade limitada
-def minimax(jogo, profundidade, maximizando, turno):
-    if profundidade == 0 or jogo.verificar_vitoria():
-        jogador = 'J1' if maximizando else 'J2'
-        return jogo.calcular_utilidade(jogo.serializar_estado(), jogador), None
+# Cria informações adicionais sobre o movimento para a função de utilidade
+def criar_move_info(jogo, movimento, turno):
+    tipo, valor = movimento
+    move_info = {'tipo': tipo}
     
-    movimentos = gerar_movimentos_possiveis(jogo, turno)
-    melhor_mov = None
-    if maximizando:
-        max_eval = float('-inf')
-        for mov in movimentos:
-            jogo_copia = copy.deepcopy(jogo)
-            move_info = None
-            if mov[0] == 'wall':
-                # Calculate opponent path before and after wall placement
-                estado_antes = jogo_copia.serializar_estado()
-                oponente = 'J2' if turno == 0 else 'J1'
-                pos_oponente = estado_antes[1] if oponente == 'J2' else estado_antes[0]
-                path_before = jogo_copia.calcular_utilidade(estado_antes, oponente)
-                aplicar_movimento(jogo_copia, mov, turno)
-                estado_depois = jogo_copia.serializar_estado()
-                pos_oponente_after = estado_depois[1] if oponente == 'J2' else estado_depois[0]
-                from quoridor.utilidade import shortest_path_length
-                path_after = shortest_path_length(oponente, pos_oponente_after, jogo_copia.tabuleiro)
-                move_info = {
-                    'tipo': 'wall',
-                    'opponent_path_before': path_before,
-                    'opponent_path_after': path_after
-                }
-            else:
-                aplicar_movimento(jogo_copia, mov, turno)
-            eval, _ = minimax(jogo_copia, profundidade-1, False, 1-turno)
-            # Re-evaluate utility with move_info for wall penalty
-            if mov[0] == 'wall':
-                jogador = 'J1' if maximizando else 'J2'
-                eval = jogo_copia.calcular_utilidade(jogo_copia.serializar_estado(), jogador, move_info=move_info)
-            if eval > max_eval:
-                max_eval = eval
-                melhor_mov = mov
-        return max_eval, melhor_mov
-    else:
-        min_eval = float('inf')
-        for mov in movimentos:
-            jogo_copia = copy.deepcopy(jogo)
-            move_info = None
-            if mov[0] == 'wall':
-                estado_antes = jogo_copia.serializar_estado()
-                oponente = 'J2' if turno == 0 else 'J1'
-                pos_oponente = estado_antes[1] if oponente == 'J2' else estado_antes[0]
-                path_before = jogo_copia.calcular_utilidade(estado_antes, oponente)
-                aplicar_movimento(jogo_copia, mov, turno)
-                estado_depois = jogo_copia.serializar_estado()
-                pos_oponente_after = estado_depois[1] if oponente == 'J2' else estado_depois[0]
-                from quoridor.utilidade import shortest_path_length
-                path_after = shortest_path_length(oponente, pos_oponente_after, jogo_copia.tabuleiro)
-                move_info = {
-                    'tipo': 'wall',
-                    'opponent_path_before': path_before,
-                    'opponent_path_after': path_after
-                }
-            else:
-                aplicar_movimento(jogo_copia, mov, turno)
-            eval, _ = minimax(jogo_copia, profundidade-1, True, 1-turno)
-            if mov[0] == 'wall':
-                jogador = 'J1' if not maximizando else 'J2'
-                eval = jogo_copia.calcular_utilidade(jogo_copia.serializar_estado(), jogador, move_info=move_info)
-            if eval < min_eval:
-                min_eval = eval
-                melhor_mov = mov
-        return min_eval, melhor_mov
+    if tipo == 'wall':
+        # Calcular caminho do oponente antes e depois da parede
+        estado_antes = jogo.serializar_estado()
+        oponente = 'J2' if turno == 0 else 'J1'
+        pos_oponente = estado_antes[1] if oponente == 'J2' else estado_antes[0]
+        path_before = shortest_path_length(oponente, pos_oponente, jogo.tabuleiro)
+        move_info['opponent_path_before'] = path_before
+    elif tipo == 'move':
+        # Informações sobre avanço do peão
+        estado_antes = jogo.serializar_estado()
+        pawn_row_before = estado_antes[0][0] if turno == 0 else estado_antes[1][0]
+        move_info['pawn_row_before'] = pawn_row_before
+    
+    return move_info
 
-# Função para o AI escolher o melhor movimento
-def escolher_movimento_ai(jogo, turno, profundidade=2):
-    _, mov = minimax(jogo, profundidade, True, turno)
-    return mov
+# Atualiza informações do movimento após aplicá-lo
+def atualizar_move_info(jogo, move_info, turno):
+    if move_info['tipo'] == 'wall':
+        estado_depois = jogo.serializar_estado()
+        oponente = 'J2' if turno == 0 else 'J1'
+        pos_oponente = estado_depois[1] if oponente == 'J2' else estado_depois[0]
+        path_after = shortest_path_length(oponente, pos_oponente, jogo.tabuleiro)
+        move_info['opponent_path_after'] = path_after
+    elif move_info['tipo'] == 'move':
+        estado_depois = jogo.serializar_estado()
+        pawn_row_after = estado_depois[0][0] if turno == 0 else estado_depois[1][0]
+        move_info['pawn_row_after'] = pawn_row_after
+    
+    return move_info
+
+# Minimax com profundidade limitada
+def minimax(jogo, profundidade, turno_max, jogador, profundidade_maxima=4):
+    # Se o jogo acabou ou se a profundidade é máxima
+    if jogo.verificar_vitoria() or profundidade == 0:
+        return jogo.calcular_utilidade(jogo.serializar_estado(), jogador)
+
+    if turno_max:  # turno do MAX
+        melhor_valor = float("-inf")  # Menos infinito é o menor valor
+        for movimento in gerar_movimentos_possiveis(jogo, 0 if jogador == 'J1' else 1):
+            jogo_copia = copy.deepcopy(jogo)
+            move_info = criar_move_info(jogo_copia, movimento, 0 if jogador == 'J1' else 1)
+            aplicar_movimento(jogo_copia, movimento, 0 if jogador == 'J1' else 1)
+            move_info = atualizar_move_info(jogo_copia, move_info, 0 if jogador == 'J1' else 1)
+            
+            utilidade = minimax(
+                jogo_copia, profundidade - 1, False, jogador, profundidade_maxima
+            )
+            
+            # Recalcular utilidade com informações de movimento
+            utilidade = jogo_copia.calcular_utilidade(
+                jogo_copia.serializar_estado(), jogador, move_info=move_info
+            )
+            
+            melhor_valor = max(utilidade, melhor_valor)  # movimento com o maior valor
+        return melhor_valor
+    else:  # turno no MIN
+        pior_valor = float("inf")  # Mais infinito é o maior valor
+        oponente = 'J2' if jogador == 'J1' else 'J1'
+        for movimento in gerar_movimentos_possiveis(jogo, 0 if oponente == 'J1' else 1):
+            jogo_copia = copy.deepcopy(jogo)
+            move_info = criar_move_info(jogo_copia, movimento, 0 if oponente == 'J1' else 1)
+            aplicar_movimento(jogo_copia, movimento, 0 if oponente == 'J1' else 1)
+            move_info = atualizar_move_info(jogo_copia, move_info, 0 if oponente == 'J1' else 1)
+            
+            utilidade = minimax(
+                jogo_copia, profundidade - 1, True, jogador, profundidade_maxima
+            )
+            
+            # Recalcular utilidade com informações de movimento
+            utilidade = jogo_copia.calcular_utilidade(
+                jogo_copia.serializar_estado(), jogador, move_info=move_info
+            )
+            
+            pior_valor = min(utilidade, pior_valor)  # movimento com o menor valor
+        return pior_valor
+
+# Minimax com poda alfa-beta
+def minimax_alfabeta(
+    jogo,
+    profundidade,
+    turno_max,
+    jogador,
+    profundidade_maxima=4,
+    alfa=float("-inf"),
+    beta=float("inf"),
+):
+    # Se o jogo acabou ou se a profundidade é máxima
+    if jogo.verificar_vitoria() or profundidade == 0:
+        return jogo.calcular_utilidade(jogo.serializar_estado(), jogador)
+
+    if turno_max:  # turno do MAX
+        valor = float("-inf")
+        for movimento in gerar_movimentos_possiveis(jogo, 0 if jogador == 'J1' else 1):
+            jogo_copia = copy.deepcopy(jogo)
+            move_info = criar_move_info(jogo_copia, movimento, 0 if jogador == 'J1' else 1)
+            aplicar_movimento(jogo_copia, movimento, 0 if jogador == 'J1' else 1)
+            move_info = atualizar_move_info(jogo_copia, move_info, 0 if jogador == 'J1' else 1)
+            
+            utilidade = minimax_alfabeta(
+                jogo_copia,
+                profundidade - 1,
+                False,
+                jogador,
+                profundidade_maxima,
+                alfa,
+                beta,
+            )
+            
+            # Recalcular utilidade com informações de movimento
+            utilidade = jogo_copia.calcular_utilidade(
+                jogo_copia.serializar_estado(), jogador, move_info=move_info
+            )
+            
+            valor = max(valor, utilidade)
+            alfa = max(alfa, valor)
+            if beta <= alfa:
+                break  # Poda beta
+        return valor
+    else:  # turno no MIN
+        valor = float("inf")
+        oponente = 'J2' if jogador == 'J1' else 'J1'
+        for movimento in gerar_movimentos_possiveis(jogo, 0 if oponente == 'J1' else 1):
+            jogo_copia = copy.deepcopy(jogo)
+            move_info = criar_move_info(jogo_copia, movimento, 0 if oponente == 'J1' else 1)
+            aplicar_movimento(jogo_copia, movimento, 0 if oponente == 'J1' else 1)
+            move_info = atualizar_move_info(jogo_copia, move_info, 0 if oponente == 'J1' else 1)
+            
+            utilidade = minimax_alfabeta(
+                jogo_copia,
+                profundidade - 1,
+                True,
+                jogador,
+                profundidade_maxima,
+                alfa,
+                beta,
+            )
+            
+            # Recalcular utilidade com informações de movimento
+            utilidade = jogo_copia.calcular_utilidade(
+                jogo_copia.serializar_estado(), jogador, move_info=move_info
+            )
+            
+            valor = min(valor, utilidade)
+            beta = min(beta, valor)
+            if beta <= alfa:
+                break  # Poda alfa
+        return valor
+
+# Encontrar o melhor movimento do computador usando minimax
+def melhor_jogada_agente(jogo, turno, profundidade_maxima=4):
+    jogador = 'J1' if turno == 0 else 'J2'
+    melhor_valor = float("-inf")
+    melhor_jogada = None
+    
+    for movimento in gerar_movimentos_possiveis(jogo, turno):
+        jogo_copia = copy.deepcopy(jogo)
+        move_info = criar_move_info(jogo_copia, movimento, turno)
+        aplicar_movimento(jogo_copia, movimento, turno)
+        move_info = atualizar_move_info(jogo_copia, move_info, turno)
+        
+        utilidade = minimax(
+            jogo_copia, profundidade_maxima - 1, False, jogador, profundidade_maxima
+        )
+        
+        # Recalcular utilidade com informações de movimento
+        utilidade = jogo_copia.calcular_utilidade(
+            jogo_copia.serializar_estado(), jogador, move_info=move_info
+        )
+        
+        if utilidade > melhor_valor:
+            melhor_valor = utilidade
+            melhor_jogada = movimento
+    
+    return melhor_jogada
+
+# Encontrar o melhor movimento do computador usando minimax com poda alfa-beta
+def melhor_jogada_agente_poda(jogo, turno, profundidade_maxima=4):
+    jogador = 'J1' if turno == 0 else 'J2'
+    melhor_valor = float("-inf")
+    melhor_jogada = None
+    alfa = float("-inf")
+    beta = float("inf")
+    
+    for movimento in gerar_movimentos_possiveis(jogo, turno):
+        jogo_copia = copy.deepcopy(jogo)
+        move_info = criar_move_info(jogo_copia, movimento, turno)
+        aplicar_movimento(jogo_copia, movimento, turno)
+        move_info = atualizar_move_info(jogo_copia, move_info, turno)
+        
+        utilidade = minimax_alfabeta(
+            jogo_copia, profundidade_maxima - 1, False, jogador, profundidade_maxima, alfa, beta
+        )
+        
+        # Recalcular utilidade com informações de movimento
+        utilidade = jogo_copia.calcular_utilidade(
+            jogo_copia.serializar_estado(), jogador, move_info=move_info
+        )
+        
+        if utilidade > melhor_valor:
+            melhor_valor = utilidade
+            melhor_jogada = movimento
+        
+        alfa = max(alfa, melhor_valor)
+    
+    return melhor_jogada
+
+# Função para o AI escolher o melhor movimento (usando poda alfa-beta por padrão)
+def escolher_movimento_ai(jogo, turno, profundidade=3, usar_poda=True):
+    if usar_poda:
+        return melhor_jogada_agente_poda(jogo, turno, profundidade)
+    else:
+        return melhor_jogada_agente(jogo, turno, profundidade)

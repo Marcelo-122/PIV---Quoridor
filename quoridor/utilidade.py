@@ -32,7 +32,7 @@ def calcular_utilidade(estado, jogador, tabuleiro=None, move_info=None):
     estado: (pos_j1, pos_j2, paredes_j1, paredes_j2)
     jogador: 'J1' ou 'J2'
     tabuleiro: estado do tabuleiro
-    move_info: dict opcional, usado para penalizar paredes inúteis
+    move_info: dict opcional, usado para penalizar paredes inúteis e bonificar avanço de peão
     """
     posicao_j1, posicao_j2, paredes_j1, paredes_j2 = estado
     if tabuleiro is None:
@@ -53,8 +53,20 @@ def calcular_utilidade(estado, jogador, tabuleiro=None, move_info=None):
             if opp_after <= opp_before:
                 useless_wall_penalty = -2  # Penalize useless wall
 
+    # Pawn advancement bonus (if info provided)
+    pawn_advancement_bonus = 0
+    if move_info and move_info.get('tipo') == 'move':
+        # move_info must have 'pawn_row_before' and 'pawn_row_after'
+        row_before = move_info.get('pawn_row_before')
+        row_after = move_info.get('pawn_row_after')
+        if row_before is not None and row_after is not None:
+            if jogador == "J1":
+                pawn_advancement_bonus = (row_after - row_before) * 1.0  # J1 wants to go down
+            else:
+                pawn_advancement_bonus = (row_before - row_after) * 1.0  # J2 wants to go up
+
     if jogador == "J1":
-        return (j2_path - j1_path) + wall_bonus + useless_wall_penalty
+        return (j2_path - j1_path) + wall_bonus + useless_wall_penalty + pawn_advancement_bonus
     else:
-        return (j1_path - j2_path) + wall_bonus + useless_wall_penalty
-# Função de utilidade aprimorada para Quoridor: shortest path, wall count, and wall penalty.
+        return (j1_path - j2_path) + wall_bonus + useless_wall_penalty + pawn_advancement_bonus
+# Função de utilidade aprimorada para Quoridor: shortest path, wall count, wall penalty, and pawn advancement bonus.

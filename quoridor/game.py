@@ -54,4 +54,7 @@ class JogoQuoridor:
         )
 
     def calcular_utilidade(self, estado, jogador, **kwargs):
-        return calcular_utilidade(estado, jogador, self.tabuleiro, **kwargs)
+        # Pass tabuleiro only if it's not already in kwargs
+        if 'tabuleiro' not in kwargs:
+            return calcular_utilidade(estado, jogador, tabuleiro=self.tabuleiro, **kwargs)
+        return calcular_utilidade(estado, jogador, **kwargs)
