@@ -1,6 +1,7 @@
+import time
+
 import pygame
 
-import time
 from quoridor.constantes import (
     ALTURA,
     BLACK,
@@ -33,9 +34,11 @@ WALL_COLOR = (139, 69, 19)  # Brown
 GRID_COLOR = (200, 200, 200)  # Light gray
 BG_COLOR = (240, 240, 240)  # Off-white
 HIGHLIGHT_COLOR = (255, 255, 0)  # Yellow for highlighting
+LABEL_COLOR = (50, 50, 50)  # Dark gray for labels
 
 # Font
 font = pygame.font.SysFont("Arial", 20)
+label_font = pygame.font.SysFont("Arial", 16)
 
 
 class QuoridorGUI:
@@ -51,9 +54,42 @@ class QuoridorGUI:
         self.wall_thickness = 10
         self.selected_cell = None
 
+        # Add margin for labels
+        self.margin = 30
+        self.board_offset_x = self.margin
+        self.board_offset_y = self.margin
+
     def draw_board(self):
         # Fill background
         screen.fill(BG_COLOR)
+
+        # Draw row and column labels
+        for i in range(LINHAS):
+            # Row numbers (1-9)
+            row_label = label_font.render(str(i + 1), True, LABEL_COLOR)
+            screen.blit(
+                row_label,
+                (
+                    self.board_offset_x - 20,
+                    self.board_offset_y
+                    + i * self.cell_size
+                    + self.cell_size // 2
+                    - row_label.get_height() // 2,
+                ),
+            )
+
+            # Column letters (a-i)
+            col_label = label_font.render(chr(ord("a") + i), True, LABEL_COLOR)
+            screen.blit(
+                col_label,
+                (
+                    self.board_offset_x
+                    + i * self.cell_size
+                    + self.cell_size // 2
+                    - col_label.get_width() // 2,
+                    self.board_offset_y - 20,
+                ),
+            )
 
         # Draw grid
         for i in range(LINHAS):
@@ -63,8 +99,8 @@ class QuoridorGUI:
                     screen,
                     GRID_COLOR,
                     (
-                        j * self.cell_size,
-                        i * self.cell_size,
+                        self.board_offset_x + j * self.cell_size,
+                        self.board_offset_y + i * self.cell_size,
                         self.cell_size,
                         self.cell_size,
                     ),
@@ -77,8 +113,8 @@ class QuoridorGUI:
                         screen,
                         HIGHLIGHT_COLOR,
                         (
-                            j * self.cell_size,
-                            i * self.cell_size,
+                            self.board_offset_x + j * self.cell_size,
+                            self.board_offset_y + i * self.cell_size,
                             self.cell_size,
                             self.cell_size,
                         ),
@@ -96,8 +132,10 @@ class QuoridorGUI:
                         screen,
                         WALL_COLOR,
                         (
-                            j * self.cell_size,
-                            (i + 1) * self.cell_size - self.wall_thickness // 2,
+                            self.board_offset_x + j * self.cell_size,
+                            self.board_offset_y
+                            + (i + 1) * self.cell_size
+                            - self.wall_thickness // 2,
                             self.cell_size * 2,
                             self.wall_thickness,
                         ),
@@ -109,8 +147,10 @@ class QuoridorGUI:
                         screen,
                         WALL_COLOR,
                         (
-                            (j + 1) * self.cell_size - self.wall_thickness // 2,
-                            i * self.cell_size,
+                            self.board_offset_x
+                            + (j + 1) * self.cell_size
+                            - self.wall_thickness // 2,
+                            self.board_offset_y + i * self.cell_size,
                             self.wall_thickness,
                             self.cell_size * 2,
                         ),
@@ -124,8 +164,10 @@ class QuoridorGUI:
                     screen,
                     (WALL_COLOR[0], WALL_COLOR[1], WALL_COLOR[2], 128),
                     (
-                        col * self.cell_size,
-                        (row + 1) * self.cell_size - self.wall_thickness // 2,
+                        self.board_offset_x + col * self.cell_size,
+                        self.board_offset_y
+                        + (row + 1) * self.cell_size
+                        - self.wall_thickness // 2,
                         self.cell_size * 2,
                         self.wall_thickness,
                     ),
@@ -135,8 +177,10 @@ class QuoridorGUI:
                     screen,
                     (WALL_COLOR[0], WALL_COLOR[1], WALL_COLOR[2], 128),
                     (
-                        (col + 1) * self.cell_size - self.wall_thickness // 2,
-                        row * self.cell_size,
+                        self.board_offset_x
+                        + (col + 1) * self.cell_size
+                        - self.wall_thickness // 2,
+                        self.board_offset_y + row * self.cell_size,
                         self.wall_thickness,
                         self.cell_size * 2,
                     ),
@@ -151,8 +195,8 @@ class QuoridorGUI:
             screen,
             PLAYER1_COLOR,
             (
-                j1_coluna * self.cell_size + self.cell_size // 2,
-                j1_linha * self.cell_size + self.cell_size // 2,
+                self.board_offset_x + j1_coluna * self.cell_size + self.cell_size // 2,
+                self.board_offset_y + j1_linha * self.cell_size + self.cell_size // 2,
             ),
             self.cell_size // 3,
         )
@@ -162,8 +206,8 @@ class QuoridorGUI:
             screen,
             PLAYER2_COLOR,
             (
-                j2_coluna * self.cell_size + self.cell_size // 2,
-                j2_linha * self.cell_size + self.cell_size // 2,
+                self.board_offset_x + j2_coluna * self.cell_size + self.cell_size // 2,
+                self.board_offset_y + j2_linha * self.cell_size + self.cell_size // 2,
             ),
             self.cell_size // 3,
         )
@@ -204,6 +248,10 @@ class QuoridorGUI:
 
     def get_cell_from_pos(self, pos):
         x, y = pos
+        # Adjust for board offset
+        x -= self.board_offset_x
+        y -= self.board_offset_y
+
         col = x // self.cell_size
         row = y // self.cell_size
         if 0 <= col < COLUNAS and 0 <= row < LINHAS:
