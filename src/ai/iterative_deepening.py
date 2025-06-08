@@ -1,6 +1,6 @@
 import time
 import copy
-from quoridor.movimento_util import gerar_movimentos_possiveis, criar_move_info, aplicar_movimento, atualizar_move_info, BEST_FIRST_MOVES
+from src.core.movimento_util import gerar_movimentos_possiveis, criar_move_info, aplicar_movimento, atualizar_move_info, BEST_FIRST_MOVES
 
 # Implementação de aprofundamento iterativo (iterative deepening)
 def iterative_deepening(jogo, turno, minimax_alfabeta_func, transposition_table, tempo_limite=2.0, profundidade_maxima=6):

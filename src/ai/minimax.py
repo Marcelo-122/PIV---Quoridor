@@ -1,6 +1,6 @@
 import time
-from quoridor.movimento_util import gerar_movimentos_possiveis, criar_move_info, aplicar_movimento, atualizar_move_info, hash_estado, BEST_FIRST_MOVES
-from quoridor.minimax_core import melhor_jogada_agente_poda_com_valor
+from src.core.movimento_util import gerar_movimentos_possiveis, criar_move_info, aplicar_movimento, atualizar_move_info, hash_estado, BEST_FIRST_MOVES
+from .minimax_core import melhor_jogada_agente_poda_com_valor
 
 # Tabela de transposição para armazenar estados já calculados
 # Formato: {hash_estado: (profundidade, valor, melhor_movimento)}

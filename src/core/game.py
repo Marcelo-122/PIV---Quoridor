@@ -1,7 +1,7 @@
 from .paredes import colocar_parede
 from .movimentos import andar
 from .utilidade import calcular_utilidade
-from .print import imprimir_tabuleiro
+from ..utils.print import imprimir_tabuleiro
 
 
 from .square import Square

@@ -1,7 +1,7 @@
 import time
-from quoridor.game import JogoQuoridor
-from quoridor.caminho import existe_caminho
-from quoridor.minimax import escolher_movimento_ai
+from src.core.game import JogoQuoridor
+from src.core.caminho import existe_caminho
+from src.ai.minimax import escolher_movimento_ai
 
 # Configurações da IA
 USAR_PODA_ALFABETA = True  # Usar poda alfa-beta para melhor desempenho
@@ -67,7 +67,10 @@ while not jogo_terminado:
                     print("Movimento inválido: J1 ficaria preso.")
                     continue  
         elif tipo_jogada == "2":
-            movimento_input = input("Digite o movimento (ex: w, a, s, d): ")
+            movimento_input = input("Digite o movimento (ex: w, a, s, d): ").lower()
+            if movimento_input not in ['w', 'a', 's', 'd']:
+                print("Entrada inválida. Movimento deve ser 'w', 'a', 's' ou 'd'.")
+                continue
             if not jogo.andar(movimento_input, turno):
                 if not existe_caminho('J2', jogo.jogadores['J2'][0], jogo.jogadores['J2'][1], jogo.tabuleiro):
                     print("Movimento inválido: J2 ficaria preso.")

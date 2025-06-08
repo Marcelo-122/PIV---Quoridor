@@ -2,7 +2,7 @@ import time
 
 import pygame
 
-from quoridor.constantes import (
+from src.core.constantes import (
     ALTURA,
     BLACK,
     COLUNAS,
@@ -10,8 +10,8 @@ from quoridor.constantes import (
     LARGURA,
     LINHAS,
 )
-from quoridor.game import JogoQuoridor
-from quoridor.minimax import escolher_movimento_ai
+from src.core.game import JogoQuoridor
+from src.ai.minimax import escolher_movimento_ai
 
 # Initialize pygame
 pygame.init()

@@ -1,6 +1,6 @@
 import copy
-from quoridor.caminho import existe_caminho
-from quoridor.utilidade import shortest_path_length
+from .caminho import existe_caminho
+from .utilidade import shortest_path_length
 
 # Representa um movimento: (tipo, valor)
 # tipo: 'move' ou 'wall'
