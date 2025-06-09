@@ -1,8 +1,18 @@
-import time
+import os
+import sys
 
-import pygame
+# Add the project root to sys.path
+# This must be at the very top to ensure subsequent imports work correctly when the script is run directly.
+_project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if _project_root not in sys.path:
+    sys.path.insert(0, _project_root)
 
-from src.core.constantes import (
+import time  # noqa: E402
+
+import pygame  # noqa: E402
+
+from src.ai.minimax import escolher_movimento_ai  # noqa: E402
+from src.core.constantes import (  # noqa: E402
     ALTURA,
     BLACK,
     COLUNAS,
@@ -10,8 +20,7 @@ from src.core.constantes import (
     LARGURA,
     LINHAS,
 )
-from src.core.game import JogoQuoridor
-from src.ai.minimax import escolher_movimento_ai
+from src.core.game import JogoQuoridor  # noqa: E402
 
 # Initialize pygame
 pygame.init()
@@ -126,7 +135,7 @@ class QuoridorGUI:
             for j in range(COLUNAS):
                 square = self.jogo.tabuleiro[i][j]
 
-                # Draw horizontal walls (bottom walls)
+                # Draw horizontal wall segment below square (i,j) if movement down is blocked
                 if not square.pode_mover_para_baixo and i < LINHAS - 1:
                     pygame.draw.rect(
                         screen,
@@ -136,12 +145,12 @@ class QuoridorGUI:
                             self.board_offset_y
                             + (i + 1) * self.cell_size
                             - self.wall_thickness // 2,
-                            self.cell_size * 2,
+                            self.cell_size,  # Wall segment is 1 cell wide
                             self.wall_thickness,
                         ),
                     )
 
-                # Draw vertical walls (right walls)
+                # Draw vertical wall segment to the right of square (i,j) if movement right is blocked
                 if not square.pode_mover_para_direita and j < COLUNAS - 1:
                     pygame.draw.rect(
                         screen,
@@ -152,7 +161,7 @@ class QuoridorGUI:
                             - self.wall_thickness // 2,
                             self.board_offset_y + i * self.cell_size,
                             self.wall_thickness,
-                            self.cell_size * 2,
+                            self.cell_size,  # Wall segment is 1 cell high
                         ),
                     )
 
