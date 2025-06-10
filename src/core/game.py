@@ -6,6 +6,7 @@ from ..utils.print import imprimir_tabuleiro
 import numpy as np
 from .square import Square
 from .constantes import LINHAS, COLUNAS
+from .movimento_util import gerar_movimentos_possiveis
 
 class JogoQuoridor:
     def __init__(self):
@@ -133,3 +134,38 @@ class JogoQuoridor:
         )
 
         return vetor_estado
+
+
+    def calcular_recompensa_dqn(self, jogador_dqn):
+        """
+        Calcula a recompensa para o agente DQN com base no estado atual do jogo.
+        Esta função deve ser chamada APÓS o estado do jogo (incluindo self.jogo_terminado
+        e o vencedor) ter sido atualizado devido à última ação.
+
+        Args:
+            jogador_dqn (str): O identificador do jogador DQN ("J1" ou "J2").
+
+        Returns:
+            float: A recompensa calculada.
+        """
+        # Presume-se que self.jogo_terminado e self.verificar_vitoria()
+        # refletem o estado APÓS a última ação.
+        vencedor = self.verificar_vitoria()  # Retorna 'J1', 'J2', ou None
+
+        if self.jogo_terminado:
+            if vencedor == jogador_dqn:
+                return 100.0  # Recompensa grande por vencer
+            elif vencedor is not None:  # O outro jogador venceu
+                return -100.0  # Penalidade grande por perder
+            else:
+                # Jogo terminou, mas não há vencedor (ex: empate, se implementado).
+                # Para Quoridor, um jogo terminado geralmente tem um vencedor.
+                # Se for um empate genuíno, 0.0 pode ser apropriado.
+                return 0.0
+        else:
+            # Jogo não terminou: penalidade pequena por cada movimento para incentivar jogos mais curtos
+            # e evitar estagnação.
+            return -1.0
+
+    def gerar_movimentos_possiveis(self, turno):
+        return gerar_movimentos_possiveis(self, turno)
