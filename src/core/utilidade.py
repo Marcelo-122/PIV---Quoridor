@@ -27,46 +27,46 @@ def shortest_path_length(jogador, pos, tabuleiro):
             fila.append((linha, coluna+1, dist+1))
     return 99  # No path (should not happen)
 
-def calcular_utilidade(estado, jogador, tabuleiro=None, move_info=None):
+def calcular_utilidade(estado, jogador, tabuleiro=None):
     """
-    estado: (pos_j1, pos_j2, paredes_j1, paredes_j2)
-    jogador: 'J1' ou 'J2'
-    tabuleiro: estado do tabuleiro
-    move_info: dict opcional, usado para penalizar paredes inúteis e bonificar avanço de peão
+    Calcula a utilidade de um estado do jogo para o Minimax de forma estratégica.
+
+    A utilidade é calculada com base em dois fatores principais:
+    1.  **Diferença de Caminho (Peso 2.5):** O fator mais importante. Incentiva a IA a
+        priorizar o bloqueio do oponente, pois aumentar o caminho dele em 2 casas
+        (pontuação +5.0) é muito mais valioso do que avançar o próprio peão em 1 casa
+        (pontuação +2.5).
+    2.  **Diferença de Paredes (Peso 0.1):** Um fator secundário usado para desempate,
+        incentivando a IA a ser econômica com suas paredes.
+
+    Args:
+        estado (tuple): (pos_j1, pos_j2, paredes_j1, paredes_j2).
+        jogador (str): O jogador para o qual a utilidade está sendo calculada ('J1' ou 'J2').
+        tabuleiro: O estado atual do tabuleiro de jogo.
+
+    Returns:
+        float: O valor de utilidade calculado para o estado do jogo.
     """
     posicao_j1, posicao_j2, paredes_j1, paredes_j2 = estado
     if tabuleiro is None:
-        raise ValueError("Tabuleiro must be provided for shortest path calculation.")
+        raise ValueError("O tabuleiro deve ser fornecido para o cálculo do caminho mais curto.")
+
     j1_path = shortest_path_length("J1", posicao_j1, tabuleiro)
     j2_path = shortest_path_length("J2", posicao_j2, tabuleiro)
 
-    # Wall count bonus (small weight)
-    wall_bonus = (paredes_j1 - paredes_j2) * 0.5 if jogador == "J1" else (paredes_j2 - paredes_j1) * 0.5
-
-    # Penalty for useless wall (if info provided)
-    useless_wall_penalty = 0
-    if move_info and move_info.get('tipo') == 'wall':
-        # move_info must have 'opponent_path_before' and 'opponent_path_after'
-        opp_before = move_info.get('opponent_path_before')
-        opp_after = move_info.get('opponent_path_after')
-        if opp_after is not None and opp_before is not None:
-            if opp_after <= opp_before:
-                useless_wall_penalty = -2  # Penalize useless wall
-
-    # Pawn advancement bonus (if info provided)
-    pawn_advancement_bonus = 0
-    if move_info and move_info.get('tipo') == 'move':
-        # move_info must have 'pawn_row_before' and 'pawn_row_after'
-        row_before = move_info.get('pawn_row_before')
-        row_after = move_info.get('pawn_row_after')
-        if row_before is not None and row_after is not None:
-            if jogador == "J1":
-                pawn_advancement_bonus = (row_after - row_before) * 1.0  # J1 wants to go down
-            else:
-                pawn_advancement_bonus = (row_before - row_after) * 1.0  # J2 wants to go up
+    # Um peso maior para a diferença de caminhos força a IA a ser mais estratégica.
+    peso_caminho = 2.5
+    # Um peso menor para as paredes, usado como critério de desempate.
+    peso_parede = 0.1
 
     if jogador == "J1":
-        return (j2_path - j1_path) + wall_bonus + useless_wall_penalty + pawn_advancement_bonus
-    else:
-        return (j1_path - j2_path) + wall_bonus + useless_wall_penalty + pawn_advancement_bonus
+        diff_caminho = j2_path - j1_path
+        diff_paredes = paredes_j1 - paredes_j2
+    else:  # jogador == "J2"
+        diff_caminho = j1_path - j2_path
+        diff_paredes = paredes_j2 - paredes_j1
+
+    utilidade = (diff_caminho * peso_caminho) + (diff_paredes * peso_parede)
+
+    return utilidade
 # Função de utilidade aprimorada para Quoridor: shortest path, wall count, wall penalty, and pawn advancement bonus.

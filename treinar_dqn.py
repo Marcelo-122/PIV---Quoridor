@@ -183,52 +183,71 @@ def treinar():
 
             recompensa_j1 = jogo.calcular_recompensa_dqn(
                 movimento_j1, "J1", meu_caminho_antes_j1, caminho_oponente_antes_j1
-            )  # Passa o identificador do jogador e os caminhos ANTES
+            )
             proximo_estado_j1 = jogo.get_dqn_state_vector(0)
-            terminado_apos_j1 = jogo.jogo_terminado
+            terminado = jogo.jogo_terminado or num_movimentos_episodio >= MAX_MOVIMENTOS_POR_EPISODIO
+
+            # Adiciona recompensa terminal (vitória, derrota ou empate/timeout)
+            if terminado:
+                if jogo.vencedor == "J1":
+                    recompensa_j1 += 20
+                elif jogo.vencedor == "J2":
+                    recompensa_j1 -= 20
+                else:  # Jogo terminou sem vencedor (limite de movimentos)
+                    recompensa_j1 -= 20
 
             agente_dqn_j1.armazenar_experiencia(
-                estado_j1,
-                acao_idx_j1,
-                recompensa_j1,
-                proximo_estado_j1,
-                terminado_apos_j1,
+                estado_j1, acao_idx_j1, recompensa_j1, proximo_estado_j1, terminado
             )
             agente_dqn_j1.aprender()
-
             estado_j1 = proximo_estado_j1
             recompensa_acumulada_j1 += recompensa_j1
             num_movimentos_episodio += 1
 
-            if terminado_apos_j1:
-                terminado = True
+            if terminado:
                 break
 
             # --- Turno do Jogador 2 (Oponente) ---
             if MODO_TREINAMENTO == "self_play":
-                print("[DEBUG] Criando agente_j2 (self_play)", flush=True)
-                acao_idx_j2, movimento_j2 = agente_dqn_j2.escolher_acao(
-                    estado_j2, jogo, "J2"
-                )
+                agente_dqn_j2 = oponente
+                # Medir caminhos ANTES do movimento do J2
+                pos_j1_antes_j2 = jogo.jogadores["J1"]
+                pos_j2_antes_j2 = jogo.jogadores["J2"]
+                meu_caminho_antes_j2 = shortest_path_length("J2", pos_j2_antes_j2, jogo.tabuleiro)
+                caminho_oponente_antes_j2 = shortest_path_length("J1", pos_j1_antes_j2, jogo.tabuleiro)
 
+                acao_idx_j2, movimento_j2 = agente_dqn_j2.escolher_acao(estado_j2, jogo, 1)
+
+                if movimento_j2 is None:
+                    terminado = True
+                    continue
+                
                 jogo.aplicar_movimento(movimento_j2, 1)
+                print(f"  Turno {num_movimentos_episodio}: J2 (DQN) -> {movimento_j2}")
 
-                recompensa_j2 = jogo.calcular_recompensa_dqn(turno_agente_dqn=1)
+                recompensa_j2 = jogo.calcular_recompensa_dqn(
+                    movimento_j2, "J2", meu_caminho_antes_j2, caminho_oponente_antes_j2
+                )
                 proximo_estado_j2 = jogo.get_dqn_state_vector(1)
-                terminado_apos_j2 = jogo.jogo_terminado
+                terminado = jogo.jogo_terminado or num_movimentos_episodio >= MAX_MOVIMENTOS_POR_EPISODIO
+
+                # Adiciona recompensa terminal (vitória, derrota ou empate/timeout)
+                if terminado:
+                    if jogo.vencedor == "J2":
+                        recompensa_j2 += 20
+                    elif jogo.vencedor == "J1":
+                        recompensa_j2 -= 20
+                    else: # Jogo terminou sem vencedor (limite de movimentos)
+                        recompensa_j2 -= 20
 
                 agente_dqn_j2.armazenar_experiencia(
-                    estado_j2,
-                    acao_idx_j2,
-                    recompensa_j2,
-                    proximo_estado_j2,
-                    terminado_apos_j2,
+                    estado_j2, acao_idx_j2, recompensa_j2, proximo_estado_j2, terminado
                 )
                 agente_dqn_j2.aprender()
 
                 estado_j2 = proximo_estado_j2
                 recompensa_acumulada_j2 += recompensa_j2
-                terminado = terminado_apos_j2
+                num_movimentos_episodio += 1
 
             elif MODO_TREINAMENTO == "vs_minimax":
                 agente_minimax = oponente
