@@ -8,18 +8,34 @@ from .square import Square
 from .constantes import LINHAS, COLUNAS
 from .movimento_util import gerar_movimentos_possiveis
 
+# No início da classe JogoQuoridor em src/core/game.py
+
+
 class JogoQuoridor:
     def __init__(self):
-        self.jogadores = {"J1": (0, 4), "J2": (8, 4)}
-        # Cada jogador começa com 10 paredes
-        self.paredes_restantes = {"J1": 10, "J2": 10}
-        # Apenas usa a matriz do tabuleiro
+        # Guarda as configurações iniciais para poder resetar
+        self.estado_inicial_jogadores = {
+            "J1": (0, 4),
+            "J2": (8, 4),
+        }  # J1 começa em (linha 0, col 4), J2 em (linha 8, col 4)
+        self.estado_inicial_paredes_restantes = {"J1": 10, "J2": 10}
+        self.resetar_jogo()  # Chama resetar_jogo para configurar o estado inicial
+
+    def resetar_jogo(self):
+        """Reseta o jogo para o estado inicial para um novo episódio."""
+        self.jogadores = self.estado_inicial_jogadores.copy()
+        self.paredes_restantes = self.estado_inicial_paredes_restantes.copy()
         self.tabuleiro = [[Square() for _ in range(COLUNAS)] for _ in range(LINHAS)]
-        # Define as posições iniciais dos jogadores no tabuleiro
+
         j1_linha, j1_coluna = self.jogadores["J1"]
         j2_linha, j2_coluna = self.jogadores["J2"]
         self.tabuleiro[j1_linha][j1_coluna].tem_jogador = True
         self.tabuleiro[j2_linha][j2_coluna].tem_jogador = True
+
+        self.jogo_terminado = False
+        self.vencedor = None  # Pode ser 'J1', 'J2', ou None para indicar que o jogo não acabou ou é empate
+        # O turno inicial pode ser definido aqui ou gerenciado pelo loop de treinamento
+        # self.turno_atual_idx = 0 # Exemplo: J1 (índice 0) começa
 
     def colocar_parede(self, notacao, turno):
         jogador = "J1" if turno == 0 else "J2"
@@ -67,14 +83,30 @@ class JogoQuoridor:
     def andar(self, direcao, turno):
         return andar(self, direcao, turno)
 
+    # Dentro da classe JogoQuoridor
+
     def verificar_vitoria(self):
-        if self.jogadores["J1"][0] == 8:
-            print("Jogador 1 venceu!")
-            return True
+        """
+        Verifica se algum jogador alcançou a linha de chegada.
+        Atualiza self.jogo_terminado e self.vencedor.
+        Retorna o vencedor ('J1', 'J2') ou None se o jogo não terminou ou não há vencedor ainda.
+        """
+        if self.vencedor:  # Se um vencedor já foi determinado, não reavalia
+            return self.vencedor
+
+        # J1 vence se alcançar a linha LINHAS - 1 (linha 8 para um tabuleiro 9x9)
+        if self.jogadores["J1"][0] == LINHAS - 1:
+            self.jogo_terminado = True
+            self.vencedor = "J1"
+            return "J1"
+
+        # J2 vence se alcançar a linha 0
         if self.jogadores["J2"][0] == 0:
-            print("Jogador 2 venceu!")
-            return True
-        return False
+            self.jogo_terminado = True
+            self.vencedor = "J2"
+            return "J2"
+
+        return None  # Nenhum vencedor ainda
 
     def serializar_estado(self):
         return (
@@ -169,3 +201,37 @@ class JogoQuoridor:
 
     def gerar_movimentos_possiveis(self, turno):
         return gerar_movimentos_possiveis(self, turno)
+
+    # Dentro da classe JogoQuoridor
+
+    def aplicar_movimento(self, movimento_tupla, turno_idx):
+        """
+        Aplica um movimento ao jogo e atualiza o estado.
+
+        Args:
+            movimento_tupla (tuple): O movimento a ser aplicado, ex: ('move', 's') ou ('wall', 'e5h').
+            turno_idx (int): 0 para J1, 1 para J2.
+
+        Returns:
+            bool: True se o movimento foi bem-sucedido, False caso contrário.
+                  O estado do jogo (self.jogo_terminado, self.vencedor) é atualizado internamente.
+        """
+        if self.jogo_terminado:
+            # print("Tentativa de aplicar movimento em jogo já terminado.")
+            return False  # Não permite movimentos se o jogo já terminou
+
+        tipo_movimento, valor_movimento = movimento_tupla
+        sucesso_movimento = False
+
+        jogador_atual_str = "J1" if turno_idx == 0 else "J2"
+
+        if tipo_movimento == "move":
+            sucesso_movimento = self.andar(valor_movimento, turno_idx)
+        elif tipo_movimento == "wall":
+            sucesso_movimento = self.colocar_parede(valor_movimento, turno_idx)
+
+        if sucesso_movimento:
+            # Após um movimento bem-sucedido, verifica se houve um vencedor
+            self.verificar_vitoria()
+
+        return sucesso_movimento

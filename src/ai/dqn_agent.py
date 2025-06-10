@@ -1,18 +1,17 @@
 import numpy as np
 import random
-from collections import deque  # Para o Buffer de Replay
+from collections import deque
 
-# Precisaremos de uma biblioteca de aprendizado profundo, como TensorFlow/Keras ou PyTorch
-# Vamos assumir TensorFlow/Keras por enquanto para o exemplo
-from tensorflow.keras.models import Sequential, clone_model
-from tensorflow.keras.layers import Dense
+# Imports do TensorFlow/Keras
+from tensorflow.keras.models import Sequential, load_model
+from tensorflow.keras.layers import Dense, Input
 from tensorflow.keras.optimizers import Adam
 
+# Imports do projeto
 from .dqn_config_acoes import (
-    TOTAL_ACOES,
     indice_para_movimento,
     movimento_para_indice,
-)  # Nossas configs de ação
+)
 
 
 class AgenteDQN:
@@ -29,37 +28,28 @@ class AgenteDQN:
         tamanho_lote=64,
         freq_atualizacao_alvo=100,
     ):
-        self.tamanho_estado = tamanho_estado  # Ex: 135
-        self.tamanho_acao = tamanho_acao  # Ex: 132
-
-        self.gama = gama  # Fator de desconto
-        self.epsilon = epsilon  # Exploração inicial
-        self.epsilon_min = epsilon_min  # Exploração mínima
-        self.epsilon_decay = epsilon_decay  # Decaimento da exploração
+        self.tamanho_estado = tamanho_estado
+        self.tamanho_acao = tamanho_acao
+        self.gama = gama
+        self.epsilon = epsilon
+        self.epsilon_min = epsilon_min
+        self.epsilon_decay = epsilon_decay
         self.taxa_aprendizado = taxa_aprendizado
-
         self.buffer_replay = deque(maxlen=capacidade_buffer)
         self.tamanho_lote = tamanho_lote
-        self.freq_atualizacao_alvo = (
-            freq_atualizacao_alvo  # Com que frequência atualizar a rede alvo
-        )
+        self.freq_atualizacao_alvo = freq_atualizacao_alvo
         self.contador_atualizacao_alvo = 0
 
-        # Rede Q Principal e Rede Q Alvo
         self.model = self._construir_modelo()
         self.target_model = self._construir_modelo()
-        self.atualizar_rede_alvo()  # Inicializa target_model com os pesos de model
+        self.atualizar_rede_alvo()
 
     def _construir_modelo(self):
-        # Arquitetura da Rede Neural
         modelo = Sequential()
-        modelo.add(
-            Dense(128, input_dim=self.tamanho_estado, activation="relu")
-        )  # Camada de entrada
-        modelo.add(Dense(128, activation="relu"))  # Camada oculta
-        modelo.add(
-            Dense(self.tamanho_acao, activation="linear")
-        )  # Camada de saída (Q-valores)
+        modelo.add(Input(shape=(self.tamanho_estado,)))
+        modelo.add(Dense(128, activation="relu"))
+        modelo.add(Dense(128, activation="relu"))
+        modelo.add(Dense(self.tamanho_acao, activation="linear"))
         modelo.compile(loss="mse", optimizer=Adam(learning_rate=self.taxa_aprendizado))
         return modelo
 
@@ -72,19 +62,12 @@ class AgenteDQN:
         self, estado, acao_indice, recompensa, proximo_estado, terminado
     ):
         """Adiciona uma experiência ao buffer de replay."""
-        # O estado e proximo_estado já devem ser os vetores da DQN
-        # acao_indice é o índice numérico da ação (0-131)
         self.buffer_replay.append(
             (estado, acao_indice, recompensa, proximo_estado, terminado)
         )
 
     def escolher_acao(self, estado_vetor, jogo, turno_jogador_atual):
-        """
-        Escolhe uma ação usando a política epsilon-greedy.
-        Retorna o índice da ação (0-131) e o movimento do jogo ('move', 'd') ou ('wall', 'e5h').
-        """
-        # estado_vetor é o resultado de jogo.get_dqn_state_vector()
-        # Precisamos obter as ações válidas para mascaramento ou seleção
+        """Escolhe uma ação usando a política epsilon-greedy."""
         movimentos_validos_jogo = jogo.gerar_movimentos_possiveis(turno_jogador_atual)
         indices_acoes_validas = [
             movimento_para_indice(m[0], m[1])
@@ -92,19 +75,15 @@ class AgenteDQN:
             if m is not None
         ]
 
-        if not indices_acoes_validas:  # Se não houver movimentos válidos (raro, mas possível em estados finais forçados)
-            return None, None  # Ou alguma ação padrão/aleatória se necessário
+        if not indices_acoes_validas:
+            return None, None
 
         if np.random.rand() <= self.epsilon:
-            # Ação aleatória (exploração) dentre as válidas
             indice_acao_escolhida = random.choice(indices_acoes_validas)
         else:
-            # Ação baseada nos Q-valores (explotação)
             q_valores = self.model.predict(
                 np.reshape(estado_vetor, [1, self.tamanho_estado])
             )[0]
-
-            # Considerar apenas Q-valores de ações válidas
             q_valores_validos = {i: q_valores[i] for i in indices_acoes_validas}
             indice_acao_escolhida = max(q_valores_validos, key=q_valores_validos.get)
 
@@ -112,60 +91,48 @@ class AgenteDQN:
         return indice_acao_escolhida, movimento_escolhido_jogo
 
     def aprender(self):
-        """
-        Treina a rede Q principal usando um lote de experiências do buffer de replay.
-        Este é o "Q-Learning update rule" para DQN.
-        """
+        """Treina a rede Q principal usando um lote de experiências."""
         if len(self.buffer_replay) < self.tamanho_lote:
-            return  # Não aprender até que o buffer tenha amostras suficientes
+            return
 
         lote_amostras = random.sample(self.buffer_replay, self.tamanho_lote)
 
-        estados_lote = []
-        q_alvos_lote = []
+        estados = np.array([amostra[0] for amostra in lote_amostras])
+        proximos_estados = np.array([amostra[3] for amostra in lote_amostras])
 
-        for estado, acao_indice, recompensa, proximo_estado, terminado in lote_amostras:
-            estado_np = np.reshape(estado, [1, self.tamanho_estado])
-            proximo_estado_np = np.reshape(proximo_estado, [1, self.tamanho_estado])
+        q_valores_atuais = self.model.predict(estados)
+        q_valores_proximos_alvo = self.target_model.predict(proximos_estados)
 
-            q_alvo_para_estado_atual = self.model.predict(estado_np)[
-                0
-            ]  # Q-valores atuais para todas as ações
-
+        for i, (
+            estado,
+            acao_indice,
+            recompensa,
+            proximo_estado,
+            terminado,
+        ) in enumerate(lote_amostras):
             if terminado:
-                q_alvo_acao = recompensa
+                q_alvo = recompensa
             else:
-                # Bellman equation: R + gamma * max_a' Q_target(s', a')
-                q_futuro_max = np.amax(self.target_model.predict(proximo_estado_np)[0])
-                q_alvo_acao = recompensa + self.gama * q_futuro_max
+                q_alvo = recompensa + self.gama * np.amax(q_valores_proximos_alvo[i])
 
-            q_alvo_para_estado_atual[acao_indice] = (
-                q_alvo_acao  # Atualiza o Q-valor apenas para a ação tomada
-            )
+            q_valores_atuais[i][acao_indice] = q_alvo
 
-            estados_lote.append(estado)  # Adiciona o estado original
-            q_alvos_lote.append(
-                q_alvo_para_estado_atual
-            )  # Adiciona os Q-valores alvo (com a ação tomada atualizada)
+        self.model.fit(estados, q_valores_atuais, epochs=1, verbose=0)
 
-        # Treinar o modelo principal
-        # Keras espera que as entradas (estados) e saídas (Q-alvos) sejam arrays numpy
-        self.model.fit(
-            np.array(estados_lote), np.array(q_alvos_lote), epochs=1, verbose=0
-        )
-
-        # Decaimento do Epsilon
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay
 
-        # Atualizar a rede alvo periodicamente
         self.contador_atualizacao_alvo += 1
         if self.contador_atualizacao_alvo % self.freq_atualizacao_alvo == 0:
             self.atualizar_rede_alvo()
 
-    # Poderíamos adicionar métodos para salvar/carregar o modelo
-    # def salvar_modelo(self, nome_arquivo):
-    #     self.model.save_weights(nome_arquivo)
-    # def carregar_modelo(self, nome_arquivo):
-    #     self.model.load_weights(nome_arquivo)
-    #     self.atualizar_rede_alvo()
+    def salvar_modelo(self, caminho_arquivo):
+        """Salva o modelo Q principal (arquitetura + pesos)."""
+        print(f"Salvando modelo em: {caminho_arquivo}")
+        self.model.save(caminho_arquivo)
+
+    def carregar_modelo(self, caminho_arquivo):
+        """Carrega um modelo Q principal de um arquivo."""
+        print(f"Carregando modelo de: {caminho_arquivo}")
+        self.model = load_model(caminho_arquivo)
+        self.atualizar_rede_alvo()

@@ -1,3 +1,7 @@
+# --- Definições do Vetor de Estado ---
+# Tamanho do vetor de estado que representa o jogo para a rede neural.
+TAMANHO_ESTADO = 135
+
 # --- Definições do Espaço de Ação ---
 NUM_ACOES_PEAO = 4
 # Movimentos: 0: 'w' (cima), 1: 's' (baixo), 2: 'a' (esquerda), 3: 'd' (direita)
@@ -9,9 +13,7 @@ ACOES_PEAO_INV_MAP = {
 NUM_POSICOES_PAREDE_HORIZONTAL = 64  # Grade 8x8
 NUM_POSICOES_PAREDE_VERTICAL = 64  # Grade 8x8
 
-TOTAL_ACOES = (
-    NUM_ACOES_PEAO + NUM_POSICOES_PAREDE_HORIZONTAL + NUM_POSICOES_PAREDE_VERTICAL
-)
+TOTAL_ACOES = NUM_ACOES_PEAO + NUM_POSICOES_PAREDE_HORIZONTAL + NUM_POSICOES_PAREDE_VERTICAL
 # Total = 4 + 64 + 64 = 132
 
 # --- Funções de Mapeamento Ação <-> Movimento do Jogo ---

@@ -101,11 +101,12 @@ def gerar_movimentos_possiveis(jogo, turno, ordenar=True, transposition_table=No
             movimentos.append(("move", direcao))
 
     # Tentativas de colocar parede
-    for linha in range(1, LINHAS + 1):
-        for coluna in range(COLUNAS):
-            letra_coluna = chr(ord("a") + coluna)
+    # Paredes são 8x8. Colunas de 'a' a 'h' (índices 0-7), linhas de 1 a 8.
+    for linha_notacao_num in range(1, LINHAS):  # Gera números de 1 a 8 (LINHAS é 9)
+        for coluna_idx in range(COLUNAS - 1):    # Gera índices de 0 a 7 (COLUNAS é 9)
+            letra_coluna = chr(ord("a") + coluna_idx)
             for direcao in ["h", "v"]:
-                notacao = f"{letra_coluna}{linha}{direcao}"
+                notacao = f"{letra_coluna}{linha_notacao_num}{direcao}"
                 jogo_copia = copy.deepcopy(jogo)
                 if jogo_copia.colocar_parede(notacao, turno):
                     # Checa se ambos jogadores ainda têm caminho ao objetivo
