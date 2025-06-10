@@ -14,11 +14,10 @@ if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
 # --- Configurações e Hiperparâmetros ---
-NUM_EPISODIOS = 10  # Reduzido para teste rápido
-MODO_TREINAMENTO = "vs_minimax"  # Opções: 'self_play' ou 'vs_minimax'
+NUM_EPISODIOS = 1000  # Reduzido para teste rápido coloque 10, para a apresentaçao vai ser 1000
+MODO_TREINAMENTO = "vs_minimax"  # Opções: 'self_play' ou 'vs_minimax' para o treinamento
 
 # Parâmetros para AgenteDQN
-# TAMANHO_ESTADO é importado de dqn_config_acoes
 NUM_ACOES = TOTAL_ACOES  # 132 ações possíveis
 LEARNING_RATE = 0.001
 GAMMA = 0.99

@@ -223,8 +223,6 @@ class JogoQuoridor:
         tipo_movimento, valor_movimento = movimento_tupla
         sucesso_movimento = False
 
-        jogador_atual_str = "J1" if turno_idx == 0 else "J2"
-
         if tipo_movimento == "move":
             sucesso_movimento = self.andar(valor_movimento, turno_idx)
         elif tipo_movimento == "wall":
