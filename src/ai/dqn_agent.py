@@ -131,8 +131,10 @@ class AgenteDQN:
         print(f"Salvando modelo em: {caminho_arquivo}")
         self.model.save(caminho_arquivo)
 
-    def carregar_modelo(self, caminho_arquivo):
+    def carregar_modelo(self, caminho_arquivo, compile=True):
         """Carrega um modelo Q principal de um arquivo."""
         print(f"Carregando modelo de: {caminho_arquivo}")
-        self.model = load_model(caminho_arquivo)
-        self.atualizar_rede_alvo()
+        self.model = load_model(caminho_arquivo, compile=compile)
+        # A rede alvo só precisa ser atualizada se o modelo for para treinamento
+        if compile:
+            self.atualizar_rede_alvo()

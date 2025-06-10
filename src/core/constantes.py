@@ -8,3 +8,7 @@ GREEN = (0, 255, 0)
 BLUE = (0, 0, 255)
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
+
+# Cores para mensagens na GUI
+COR_MSG_VITORIA = (28, 158, 75)  # Verde
+COR_MSG_ERRO = (204, 0, 0)
