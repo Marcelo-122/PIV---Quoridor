@@ -100,24 +100,30 @@ class AgenteDQN:
         estados = np.array([amostra[0] for amostra in lote_amostras])
         proximos_estados = np.array([amostra[3] for amostra in lote_amostras])
 
-        q_valores_atuais = self.model.predict(estados)
-        q_valores_proximos_alvo = self.target_model.predict(proximos_estados)
+        q_valores_atuais_batch = self.model.predict(estados) # Usado para atribuição final
+        q_valores_proximos_principal_batch = self.model.predict(proximos_estados) # Usado para SELECIONAR a melhor ação no próximo estado
+        q_valores_proximos_alvo_batch = self.target_model.predict(proximos_estados) # Usado para AVALIAR a ação selecionada
 
         for i, (
             estado,
             acao_indice,
             recompensa,
-            proximo_estado,
+            proximo_estado, # Não usado diretamente no loop, mas faz parte da amostra
             terminado,
         ) in enumerate(lote_amostras):
             if terminado:
                 q_alvo = recompensa
             else:
-                q_alvo = recompensa + self.gama * np.amax(q_valores_proximos_alvo[i])
+                # Double DQN:
+                # 1. A rede principal (model) escolhe a melhor ação (a') para o próximo estado (s')
+                melhor_acao_proximo_estado_idx = np.argmax(q_valores_proximos_principal_batch[i])
+                # 2. A rede alvo (target_model) avalia o valor Q dessa ação (Q_target(s', a'))
+                q_valor_futuro = q_valores_proximos_alvo_batch[i][melhor_acao_proximo_estado_idx]
+                q_alvo = recompensa + self.gama * q_valor_futuro
 
-            q_valores_atuais[i][acao_indice] = q_alvo
+            q_valores_atuais_batch[i][acao_indice] = q_alvo
 
-        self.model.fit(estados, q_valores_atuais, epochs=1, verbose=0)
+        self.model.fit(estados, q_valores_atuais_batch, epochs=1, verbose=0)
 
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay

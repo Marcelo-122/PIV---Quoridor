@@ -15,7 +15,7 @@ if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
 # --- Configurações e Hiperparâmetros ---
-NUM_EPISODIOS = 100  # Reduzido para teste rápido coloque 10, para a apresentaçao vai ser 1000
+NUM_EPISODIOS = 10000  # Reduzido para teste rápido coloque 10, para a apresentaçao vai ser 1000
 MODO_TREINAMENTO = "self_play"  # Opções: 'self_play' ou 'vs_minimax' para o treinamento
 
 # Parâmetros para AgenteDQN
@@ -23,7 +23,7 @@ NUM_ACOES = TOTAL_ACOES  # 132 ações possíveis
 LEARNING_RATE = 0.001
 GAMMA = 0.99
 EPSILON_INICIAL = 1.0
-EPSILON_MIN = 0.01
+MIN_EPSILON = 0.01
 EPSILON_DECAY = 0.9995  # Ajustar conforme necessário para decair mais lentamente/rápido
 CAPACIDADE_BUFFER = 100000
 BATCH_SIZE = 64
@@ -85,7 +85,7 @@ def treinar():
         taxa_aprendizado=LEARNING_RATE,
         gama=GAMMA,
         epsilon=EPSILON_INICIAL,
-        epsilon_min=EPSILON_MIN,
+        epsilon_min=MIN_EPSILON,
         epsilon_decay=EPSILON_DECAY,
         capacidade_buffer=CAPACIDADE_BUFFER,
         tamanho_lote=BATCH_SIZE,
@@ -107,7 +107,7 @@ def treinar():
             taxa_aprendizado=LEARNING_RATE,  # Pode ter LR diferente se desejado
             gama=GAMMA,
             epsilon=EPSILON_INICIAL,
-            epsilon_min=EPSILON_MIN,
+            epsilon_min=MIN_EPSILON,
             epsilon_decay=EPSILON_DECAY,
             capacidade_buffer=CAPACIDADE_BUFFER,
             tamanho_lote=BATCH_SIZE,
