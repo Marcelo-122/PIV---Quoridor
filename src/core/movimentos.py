@@ -34,7 +34,7 @@ def andar(self, direcao, turno):
             return False
 
     # Atualiza o tabuleiro se ele existir
-    if hasattr(self, 'tabuleiro'):
+    if hasattr(self, "tabuleiro"):
         # Limpa a posição antiga
         if 0 <= linha < 9 and 0 <= coluna < 9:
             self.tabuleiro[linha][coluna].tem_jogador = False
