@@ -3,7 +3,7 @@ from .movimentos import andar
 from .utilidade import calcular_utilidade, shortest_path_length
 from ..utils.print import imprimir_tabuleiro
 
-
+import numpy as np
 from .square import Square
 from .constantes import LINHAS, COLUNAS
 
@@ -88,3 +88,48 @@ class JogoQuoridor:
         if 'tabuleiro' not in kwargs:
             return calcular_utilidade(estado, jogador, tabuleiro=self.tabuleiro, **kwargs)
         return calcular_utilidade(estado, jogador, **kwargs)
+
+    def get_dqn_state_vector(self, turno):
+        """
+        Gera um vetor numérico de tamanho fixo representando o estado atual do jogo para uma DQN.
+        Características do vetor de estado (135 no total):
+        - Posição J1 (linha, col): 2
+        - Posição J2 (linha, col): 2
+        - Paredes restantes J1: 1
+        - Paredes restantes J2: 1
+        - Paredes horizontais (grade 8x8): 64 (1 se existe parede, 0 caso contrário)
+        - Paredes verticais (grade 8x8): 64 (1 se existe parede, 0 caso contrário)
+        - Jogador atual (0 para J1, 1 para J2): 1
+        """
+        pos_j1 = self.jogadores["J1"]
+        pos_j2 = self.jogadores["J2"]
+        paredes_restantes_j1 = self.paredes_restantes["J1"]
+        paredes_restantes_j2 = self.paredes_restantes["J2"]
+
+        paredes_h = np.zeros((8, 8), dtype=np.float32)
+        for linha in range(8):
+            for coluna in range(8):
+                if not self.tabuleiro[linha][coluna].pode_mover_para_baixo:
+                    paredes_h[linha, coluna] = 1.0
+
+        paredes_v = np.zeros((8, 8), dtype=np.float32)
+        for linha in range(8):
+            for coluna in range(8):
+                if not self.tabuleiro[linha][coluna].pode_mover_para_direita:
+                    paredes_v[linha, coluna] = 1.0
+
+        indicador_jogador_atual = float(turno)  # 0.0 para J1, 1.0 para J2
+
+        vetor_estado = np.concatenate(
+            [
+                np.array([pos_j1[0], pos_j1[1]], dtype=np.float32),
+                np.array([pos_j2[0], pos_j2[1]], dtype=np.float32),
+                np.array([paredes_restantes_j1], dtype=np.float32),
+                np.array([paredes_restantes_j2], dtype=np.float32),
+                paredes_h.flatten(),
+                paredes_v.flatten(),
+                np.array([indicador_jogador_atual], dtype=np.float32),
+            ]
+        )
+
+        return vetor_estado
