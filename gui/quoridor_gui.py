@@ -1,9 +1,9 @@
-import os
 import sys
+import os
 
 # Add the project root to sys.path
 # This must be at the very top to ensure subsequent imports work correctly when the script is run directly.
-_project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+_project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 if _project_root not in sys.path:
     sys.path.insert(0, _project_root)
 
@@ -11,7 +11,6 @@ import time  # noqa: E402
 
 import pygame  # noqa: E402
 
-from src.ai.minimax import escolher_movimento_ai  # noqa: E402
 from src.core.constantes import (  # noqa: E402
     ALTURA,
     BLACK,
@@ -21,6 +20,7 @@ from src.core.constantes import (  # noqa: E402
     LINHAS,
 )
 from src.core.game import JogoQuoridor  # noqa: E402
+from src.ai.minimax import escolher_movimento_ai  # noqa: E402
 
 # Initialize pygame
 pygame.init()
