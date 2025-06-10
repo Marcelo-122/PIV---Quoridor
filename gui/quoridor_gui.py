@@ -3,12 +3,6 @@ import sys
 from enum import Enum, auto
 
 import pygame
-
-# Adiciona o diretório raiz do projeto ao sys.path para garantir que `src` seja encontrado.
-_project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-if _project_root not in sys.path:
-    sys.path.insert(0, _project_root)
-
 # Importações do projeto e da GUI devem vir após a manipulação do sys.path,
 # mas todas as importações devem ser agrupadas o máximo possível.
 from src.ai.dqn_agent import AgenteDQN  # noqa: E402
@@ -24,7 +18,11 @@ from . import (
 )
 from . import gui_drawing  # Importa o novo módulo de desenho  # noqa: E402
 
-
+# Adiciona o diretório raiz do projeto ao sys.path para garantir que `src` seja encontrado.
+_project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if _project_root not in sys.path:
+    sys.path.insert(0, _project_root)
+    
 class GameState(Enum):
     TITLE_SCREEN = auto()
     PLAYING = auto()

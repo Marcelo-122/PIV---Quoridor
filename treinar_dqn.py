@@ -7,6 +7,7 @@ from src.ai import minimax as minimax_logic
 from src.ai.dqn_agent import AgenteDQN
 from src.ai.dqn_config_acoes import TAMANHO_ESTADO, TOTAL_ACOES
 from src.core.game import JogoQuoridor
+from src.core.utilidade import shortest_path_length
 
 # Garante que o diretório raiz do projeto esteja no sys.path
 project_root = os.path.dirname(os.path.abspath(__file__))
@@ -14,8 +15,8 @@ if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
 # --- Configurações e Hiperparâmetros ---
-NUM_EPISODIOS = 1000  # Reduzido para teste rápido coloque 10, para a apresentaçao vai ser 1000
-MODO_TREINAMENTO = "vs_minimax"  # Opções: 'self_play' ou 'vs_minimax' para o treinamento
+NUM_EPISODIOS = 100  # Reduzido para teste rápido coloque 10, para a apresentaçao vai ser 1000
+MODO_TREINAMENTO = "self_play"  # Opções: 'self_play' ou 'vs_minimax' para o treinamento
 
 # Parâmetros para AgenteDQN
 NUM_ACOES = TOTAL_ACOES  # 132 ações possíveis
@@ -31,7 +32,7 @@ FREQUENCIA_ATUALIZACAO_ALVO = (
 )
 
 # Parâmetros para AgenteMinimax (se MODO_TREINAMENTO == 'vs_minimax')
-PROFUNDIDADE_MINIMAX = 2  # Ajuste conforme a dificuldade desejada para o oponente
+PROFUNDIDADE_MINIMAX = 1  # Ajuste conforme a dificuldade desejada para o oponente
 
 # Salvamento de Modelo
 PASTA_MODELOS = "saved_models_dqn"
@@ -145,7 +146,7 @@ def treinar():
     print("[DEBUG] Antes do loop de episódios", flush=True)
     for episodio in range(1, NUM_EPISODIOS + 1):
         jogo.resetar_jogo()
-        print(f"[DEBUG] Episódio {episodio} - Início", flush=True)
+        print(f"\n--- Episódio {episodio} ---")
         estado_j1 = jogo.get_dqn_state_vector(0)  # Turno 0 para J1
         if MODO_TREINAMENTO == "self_play":
             estado_j2 = jogo.get_dqn_state_vector(1)  # Turno 1 para J2
@@ -159,23 +160,30 @@ def treinar():
 
         print(f"[DEBUG] Episódio {episodio} - Antes do loop de turnos", flush=True)
         while not terminado and num_movimentos_episodio < MAX_MOVIMENTOS_POR_EPISODIO:
-            print(
-                f"[DEBUG] Episódio {episodio} - Início do turno do Jogador 1 (Agente DQN)",
-                flush=True,
-            )
+
             # --- Turno do Jogador 1 (Agente DQN) ---
+            # Medir caminhos ANTES do movimento do J1
+            pos_j1_antes = jogo.jogadores["J1"]
+            pos_j2_antes = jogo.jogadores["J2"]
+            meu_caminho_antes_j1 = shortest_path_length("J1", pos_j1_antes, jogo.tabuleiro)
+            caminho_oponente_antes_j1 = shortest_path_length("J2", pos_j2_antes, jogo.tabuleiro)
+
             # A função escolher_acao já retorna tanto o índice quanto o movimento
             acao_idx_j1, movimento_j1 = agente_dqn_j1.escolher_acao(
                 estado_j1, jogo, 0
             )  # 0 para J1
 
+            if movimento_j1 is None:
+                print("[AVISO] Nenhum movimento válido retornado para J1. Encerrando episódio.")
+                terminado = True # Encerrar episódio se não houver movimentos
+                continue
+
             jogo.aplicar_movimento(movimento_j1, 0)
-            # Se !sucesso_mov_j1, o jogo pode ter terminado ou o movimento era inválido
-            # A recompensa e o próximo estado refletirão isso.
+            print(f"  Turno {num_movimentos_episodio}: J1 (DQN) -> {movimento_j1}")
 
             recompensa_j1 = jogo.calcular_recompensa_dqn(
-                "J1"
-            )  # Passa o identificador do jogador
+                movimento_j1, "J1", meu_caminho_antes_j1, caminho_oponente_antes_j1
+            )  # Passa o identificador do jogador e os caminhos ANTES
             proximo_estado_j1 = jogo.get_dqn_state_vector(0)
             terminado_apos_j1 = jogo.jogo_terminado
 
@@ -237,6 +245,7 @@ def treinar():
                     terminado = True  # Considera o jogo terminado
                 else:
                     jogo.aplicar_movimento(movimento_j2, 1)
+                    print(f"  Turno {num_movimentos_episodio}: J2 (MiniMax) -> {movimento_j2}")
                     terminado = jogo.jogo_terminado
 
             num_movimentos_episodio += 1
