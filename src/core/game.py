@@ -1,6 +1,6 @@
-import copy
+# import numpy removido - não mais necessário
 
-from .movimento_util import gerar_movimentos_possiveis, _tem_movimento_de_peao
+from .movimento_util import gerar_movimentos_possiveis
 from .movimentos import andar
 from .paredes import colocar_parede
 from .square import Square
@@ -75,32 +75,54 @@ class JogoQuoridor:
     def colocar_parede(self, notacao, turno):
         jogador = "J1" if turno == 0 else "J2"
         if self.paredes_restantes[jogador] <= 0:
+            # print(f"{jogador} não tem mais paredes!")
             return False
+        # Tentativamente coloca a parede (isso modifica self.tabuleiro diretamente)
+        # A função importada 'colocar_parede' já faz verificações de sobreposição e cruzamento.
+        sucesso_colocacao_basica = colocar_parede(self, notacao, turno)
 
-        # Crie uma cópia profunda para simular a colocação da parede
-        jogo_copia = copy.deepcopy(self)
+        if sucesso_colocacao_basica:
+            # Verificar se algum jogador ficou sem caminho
+            path_j1_exists = (
+                shortest_path_length("J1", self.jogadores["J1"], self.tabuleiro) < 99
+            )  # 99 indica sem caminho
+            path_j2_exists = (
+                shortest_path_length("J2", self.jogadores["J2"], self.tabuleiro) < 99
+            )
 
-        # Tente colocar a parede na cópia
-        sucesso_colocacao_basica = colocar_parede(jogo_copia, notacao, turno)
+            if not path_j1_exists or not path_j2_exists:
+                # print("Colocação de parede inválida: bloquearia o caminho de um jogador.")
+                # Reverter a colocação da parede
+                letra_coluna, numero_linha, direcao_parede = notacao
+                col_idx = ord(letra_coluna) - ord("a")
+                linha_idx = int(numero_linha) - 1
 
-        if not sucesso_colocacao_basica:
-            return False  # Falha nas regras básicas (sobreposição, etc.)
-
-        # Verifique se ambos os jogadores ainda têm um caminho para o final
-        path_j1_exists = shortest_path_length("J1", jogo_copia.jogadores["J1"], jogo_copia.tabuleiro) < 99
-        path_j2_exists = shortest_path_length("J2", jogo_copia.jogadores["J2"], jogo_copia.tabuleiro) < 99
-
-        if not path_j1_exists or not path_j2_exists:
-            return False # A parede bloqueia o caminho de um dos jogadores
-
-        # Verifique se ambos os jogadores ainda têm movimentos de peão possíveis
-        if not _tem_movimento_de_peao(jogo_copia, 0) or not _tem_movimento_de_peao(jogo_copia, 1):
-            return False # A parede deixa um dos jogadores sem movimentos
-
-        # Se todas as validações passaram, aplique as mudanças ao estado original
-        self.tabuleiro = jogo_copia.tabuleiro
-        self.paredes_restantes[jogador] -= 1
-        return True
+                if direcao_parede == "h":
+                    self.tabuleiro[linha_idx - 1][col_idx].pode_mover_para_baixo = True
+                    self.tabuleiro[linha_idx - 1][
+                        col_idx + 1
+                    ].pode_mover_para_baixo = True
+                    self.tabuleiro[linha_idx][col_idx].pode_mover_para_cima = True
+                    self.tabuleiro[linha_idx][col_idx + 1].pode_mover_para_cima = True
+                elif direcao_parede == "v":
+                    self.tabuleiro[linha_idx][
+                        col_idx - 1
+                    ].pode_mover_para_direita = True
+                    self.tabuleiro[linha_idx + 1][
+                        col_idx - 1
+                    ].pode_mover_para_direita = True
+                    self.tabuleiro[linha_idx][col_idx].pode_mover_para_esquerda = True
+                    self.tabuleiro[linha_idx + 1][
+                        col_idx
+                    ].pode_mover_para_esquerda = True
+                return False  # Falha na colocação da parede
+            else:
+                # Se os caminhos existem, a colocação é válida
+                self.paredes_restantes[jogador] -= 1
+                return True  # Sucesso na colocação da parede
+        else:
+            # A colocação básica já falhou (sobreposição, cruzamento, etc.)
+            return False
 
     def andar(self, direcao, turno):
         return andar(self, direcao, turno)
