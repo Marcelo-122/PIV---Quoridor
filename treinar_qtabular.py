@@ -40,7 +40,7 @@ CAMINHO_MODELO_CARREGAR = f"{PASTA_MODELOS}/quoridor_q_tabular_episodio_XXXX.pkl
 RECOMPENSA_VITORIA = 1000.0
 RECOMPENSA_DERROTA = -100.0
 PENALIDADE_MOVIMENTO = -0.1  # Pequena penalidade para incentivar movimentos eficientes
-BONUS_APROXIMACAO = 5.0  # Aumentado para incentivar mais a aproximação do objetivo
+BONUS_APROXIMACAO = 25.0  # Aumentado para incentivar mais a aproximação do objetivo
 PENALIDADE_MOVIMENTO_INVALIDO = -10.0  # Penalidade específica para movimentos inválidos
 
 
@@ -71,7 +71,7 @@ def calcular_recompensa(jogo, turno_idx, estado_anterior, estado_atual):
     # A linha objetivo depende de qual jogador está jogando
     linha_objetivo = jogo.linhas - 1 if turno_idx == 0 else 0
 
-    # Distância até o objetivo (em termos de linhas apenas, para simplificar)
+    # Distância até o objetivo 
     distancia_anterior = abs(pos_anterior[0] - linha_objetivo)
     distancia_atual = abs(pos_atual[0] - linha_objetivo)
 

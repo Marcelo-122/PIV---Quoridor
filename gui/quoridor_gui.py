@@ -1,6 +1,5 @@
 import os
 import sys
-import pickle
 from enum import Enum, auto
 
 import pygame
@@ -76,20 +75,27 @@ class QuoridorGUI:
         return buttons
 
     def _carregar_q_learning_agent(self):
-        """Carrega o agente Q-Learning treinado a partir de um arquivo."""
-        caminho_modelo = os.path.join("saved_models_q_tabular", "quoridor_q_tabular_final.pkl")
+        """Carrega o agente Q-Learning treinado mais recente a partir de um arquivo."""
+        pasta_modelos = "saved_models_q_tabular"
         try:
-            with open(caminho_modelo, 'rb') as f:
-                q_table = pickle.load(f)
-                agent = AgenteQLearningTabular(
-                    alpha=0, epsilon=0, gamma=0
-                )  # Parâmetros não são usados para inferência
-                agent.q_table = q_table
-                print(f"Agente Q-Learning carregado de {caminho_modelo}")
-                return agent
-        except FileNotFoundError:
-            print(f"ERRO: Arquivo do agente Q-Learning não encontrado em {caminho_modelo}")
-            return None
+            if not os.path.exists(pasta_modelos):
+                print(f"ERRO: A pasta de modelos '{pasta_modelos}' não foi encontrada.")
+                return None
+
+            lista_arquivos = [os.path.join(pasta_modelos, f) for f in os.listdir(pasta_modelos) if f.endswith(".pkl")]
+
+            if not lista_arquivos:
+                print(f"ERRO: Nenhum modelo Q-Learning encontrado na pasta {pasta_modelos}")
+                return None
+
+            caminho_modelo_recente = max(lista_arquivos, key=os.path.getmtime)
+
+            agent = AgenteQLearningTabular(
+                taxa_aprendizado=0, epsilon=0, fator_desconto=0
+            )
+            agent.carregar_q_tabela(caminho_modelo_recente)
+            return agent
+
         except Exception as e:
             print(f"ERRO: Falha ao carregar o agente Q-Learning: {e}")
             return None
@@ -256,7 +262,9 @@ class QuoridorGUI:
                 agent_name = "Q-Learning"
                 if self.q_learning_agent:
                     print(f"Turno do {agent_name} (Jogador {jogador_idx + 1})")
-                    movimento_tupla = self.q_learning_agent.escolher_movimento(self.jogo, jogador_idx)
+                    estado = self.jogo.get_estado_tupla(jogador_idx)
+                    acoes_validas = self.jogo.get_acoes_validas(jogador_idx)
+                    movimento_tupla = self.q_learning_agent.escolher_acao(estado, acoes_validas)
                 else:
                     print("ERRO: Agente Q-Learning não foi carregado.")
 
@@ -266,7 +274,9 @@ class QuoridorGUI:
                     agent_name = "Q-Learning"
                     if self.q_learning_agent:
                         print(f"Turno do {agent_name} (Jogador {jogador_idx + 1})")
-                        movimento_tupla = self.q_learning_agent.escolher_movimento(self.jogo, jogador_idx)
+                        estado = self.jogo.get_estado_tupla(jogador_idx)
+                        acoes_validas = self.jogo.get_acoes_validas(jogador_idx)
+                        movimento_tupla = self.q_learning_agent.escolher_acao(estado, acoes_validas)
                     else:
                         print("ERRO: Agente Q-Learning não foi carregado.")
                 else:  # Vez do Minimax (J2)
@@ -292,25 +302,6 @@ class QuoridorGUI:
 
         finally:
             self.ai_is_thinking = False  # Libera a trava da IA, aconteça o que acontecer
-
-    def _carregar_q_learning_agent(self):
-        """Carrega o agente Q-Learning treinado a partir de um arquivo."""
-        caminho_modelo = os.path.join("saved_models_q_tabular", "quoridor_q_tabular_final.pkl")
-        try:
-            with open(caminho_modelo, 'rb') as f:
-                q_table = pickle.load(f)
-                agent = AgenteQLearningTabular(
-                    alpha=0, epsilon=0, gamma=0
-                )  # Parâmetros não são usados para inferência
-                agent.q_table = q_table
-                print(f"Agente Q-Learning carregado de {caminho_modelo}")
-                return agent
-        except FileNotFoundError:
-            print(f"ERRO: Arquivo do agente Q-Learning não encontrado em {caminho_modelo}")
-            return None
-        except Exception as e:
-            print(f"ERRO: Falha ao carregar o agente Q-Learning: {e}")
-            return None
 
     def run(self):
         """Loop principal do jogo."""
