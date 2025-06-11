@@ -1,421 +1,332 @@
-import sys
 import os
+import sys
+from enum import Enum, auto
 
-# Add the project root to sys.path
-# This must be at the very top to ensure subsequent imports work correctly when the script is run directly.
-_project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-if _project_root not in sys.path:
-    sys.path.insert(0, _project_root)
-
-import time  # noqa: E402
-
-import pygame  # noqa: E402
-
-from src.core.constantes import (  # noqa: E402
-    ALTURA,
-    BLACK,
-    COLUNAS,
-    LACUNA_TAMANHO,
-    LARGURA,
-    LINHAS,
+import pygame
+from src.ai.q_learning_agent import AgenteQLearningTabular
+from src.ai.minimax import escolher_movimento_ai
+from src.core.constantes import (
+    LARGURA,  # Apenas LARGURA é usada diretamente aqui para botões  # noqa: E402
 )
 from src.core.game import JogoQuoridor  # noqa: E402
-from src.ai.minimax import escolher_movimento_ai  # noqa: E402
 
-# Initialize pygame
-pygame.init()
+from . import (
+    gui_config as config,  # Use o alias config para o novo módulo  # noqa: E402
+)
+from . import gui_drawing  # Importa o novo módulo de desenho  # noqa: E402
 
-# Set up display
-screen = pygame.display.set_mode((LARGURA, ALTURA))
-pygame.display.set_caption("Quoridor Game")
-clock = pygame.time.Clock()
+# Adiciona o diretório raiz do projeto ao sys.path para garantir que `src` seja encontrado.
+_project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if _project_root not in sys.path:
+    sys.path.insert(0, _project_root)
+    
+class GameState(Enum):
+    TITLE_SCREEN = auto()
+    PLAYING = auto()
+    GAME_OVER = auto()
 
-# Game settings
-USAR_PODA_ALFABETA = True
-USAR_ITERATIVE_DEEPENING = True
-TEMPO_LIMITE_AI = 2.0
-PROFUNDIDADE_PADRAO = 4
 
-# Colors
-PLAYER1_COLOR = (0, 0, 255)  # Blue
-PLAYER2_COLOR = (255, 0, 0)  # Red
-WALL_COLOR = (139, 69, 19)  # Brown
-GRID_COLOR = (200, 200, 200)  # Light gray
-BG_COLOR = (240, 240, 240)  # Off-white
-HIGHLIGHT_COLOR = (255, 255, 0)  # Yellow for highlighting
-LABEL_COLOR = (50, 50, 50)  # Dark gray for labels
-
-# Font
-font = pygame.font.SysFont("Arial", 20)
-label_font = pygame.font.SysFont("Arial", 16)
+class GameMode(Enum):
+    HUMAN_VS_HUMAN = "Humano vs Humano"
+    HUMAN_VS_MINIMAX = "Humano vs Minimax"
+    HUMAN_VS_Q_LEARNING = "Humano vs Q-Learning"
+    Q_LEARNING_VS_MINIMAX = "Q-Learning vs Minimax"
 
 
 class QuoridorGUI:
     def __init__(self):
-        self.jogo = JogoQuoridor()
-        self.turno = 0  # 0 = Jogador 1 (human), 1 = Jogador 2 (AI)
-        self.jogo_terminado = False
-        self.mensagem = "Quoridor: Jogador 1 (humano) vs Jogador 2 (IA)"
+        """Inicializa a GUI, focada no estado e na lógica do jogo."""
+        pygame.init()
+        self.screen = pygame.display.set_mode((config.LARGURA_TELA, config.ALTURA_TELA))
+        pygame.display.set_caption("Quoridor com IA")
+        self.clock = pygame.time.Clock()
+        self.game_state = GameState.TITLE_SCREEN
+        self.game_mode = None
+        self.jogo = None
+        self.mensagem = ""
+        self.human_players = []
+        self.turno = 0  # 0 para Jogador 1, 1 para Jogador 2
+        self.buttons = self._create_title_buttons()
+
+        # Estado para colocação de paredes pelo jogador humano
         self.colocando_parede = False
-        self.parede_temp = None
-        self.parede_orientacao = "h"  # Default wall orientation
-        self.cell_size = LACUNA_TAMANHO
-        self.wall_thickness = 10
-        self.selected_cell = None
+        self.parede_orientacao = 'h'  # 'h' para horizontal, 'v' para vertical
+        self.parede_temp_pos = None  # Posição (col, row) para preview da parede
+        self.ai_is_thinking = False  # Trava para impedir chamadas repetidas da IA
 
-        # Add margin for labels
-        self.margin = 30
-        self.board_offset_x = self.margin
-        self.board_offset_y = self.margin
+        # Inicializa os agentes de IA
+        self.q_learning_agent = self._carregar_q_learning_agent()
 
-    def draw_board(self):
-        # Fill background
-        screen.fill(BG_COLOR)
+    def _create_title_buttons(self):
+        """Cria os retângulos e textos para os botões da tela de título."""
+        buttons = {}
+        button_width, button_height = 400, 60
+        start_y = 250
+        spacing = 80
+        center_x = LARGURA // 2 - button_width // 2  # Usa LARGURA de constantes.py
 
-        # Draw row and column labels
-        for i in range(LINHAS):
-            # Row numbers (1-9)
-            row_label = label_font.render(str(i + 1), True, LABEL_COLOR)
-            screen.blit(
-                row_label,
-                (
-                    self.board_offset_x - 20,
-                    self.board_offset_y
-                    + i * self.cell_size
-                    + self.cell_size // 2
-                    - row_label.get_height() // 2,
-                ),
+        for i, mode in enumerate(GameMode):
+            y_pos = start_y + i * spacing
+            buttons[mode] = {
+                "rect": pygame.Rect(center_x, y_pos, button_width, button_height),
+                "text": mode.value,
+                "mode": mode,
+            }
+        return buttons
+
+    def _carregar_q_learning_agent(self):
+        """Carrega o agente Q-Learning treinado mais recente a partir de um arquivo."""
+        pasta_modelos = "saved_models_q_tabular"
+        try:
+            if not os.path.exists(pasta_modelos):
+                print(f"ERRO: A pasta de modelos '{pasta_modelos}' não foi encontrada.")
+                return None
+
+            lista_arquivos = [os.path.join(pasta_modelos, f) for f in os.listdir(pasta_modelos) if f.endswith(".pkl")]
+
+            if not lista_arquivos:
+                print(f"ERRO: Nenhum modelo Q-Learning encontrado na pasta {pasta_modelos}")
+                return None
+
+            caminho_modelo_recente = max(lista_arquivos, key=os.path.getmtime)
+
+            agent = AgenteQLearningTabular(
+                taxa_aprendizado=0, epsilon=0, fator_desconto=0
             )
+            agent.carregar_q_tabela(caminho_modelo_recente)
+            return agent
 
-            # Column letters (a-i)
-            col_label = label_font.render(chr(ord("a") + i), True, LABEL_COLOR)
-            screen.blit(
-                col_label,
-                (
-                    self.board_offset_x
-                    + i * self.cell_size
-                    + self.cell_size // 2
-                    - col_label.get_width() // 2,
-                    self.board_offset_y - 20,
-                ),
-            )
+        except Exception as e:
+            print(f"ERRO: Falha ao carregar o agente Q-Learning: {e}")
+            return None
 
-        # Draw grid
-        for i in range(LINHAS):
-            for j in range(COLUNAS):
-                # Draw cell
-                pygame.draw.rect(
-                    screen,
-                    GRID_COLOR,
-                    (
-                        self.board_offset_x + j * self.cell_size,
-                        self.board_offset_y + i * self.cell_size,
-                        self.cell_size,
-                        self.cell_size,
-                    ),
-                    1,
-                )
+    def _start_game(self, mode: GameMode):
+        self.game_mode = mode
+        # Usar tabuleiro 5x5 com 3 paredes por jogador, consistente com o script de treinamento
+        self.jogo = JogoQuoridor(linhas=5, colunas=5, total_paredes_jogador=3)
+        self.turno = 0
+        self.mensagem = f"Modo: {mode.value}"
+        self.ai_is_thinking = False
 
-                # Highlight selected cell if any
-                if self.selected_cell and self.selected_cell == (i, j):
-                    pygame.draw.rect(
-                        screen,
-                        HIGHLIGHT_COLOR,
-                        (
-                            self.board_offset_x + j * self.cell_size,
-                            self.board_offset_y + i * self.cell_size,
-                            self.cell_size,
-                            self.cell_size,
-                        ),
-                        3,
-                    )
+        if mode == GameMode.HUMAN_VS_HUMAN:
+            self.human_players = [0, 1]
+        elif mode == GameMode.HUMAN_VS_MINIMAX:
+            self.human_players = [0]  # Humano é J1 (índice 0)
+        elif mode == GameMode.HUMAN_VS_Q_LEARNING:
+            self.human_players = [0]  # Humano é J1 (índice 0)
+        elif mode == GameMode.Q_LEARNING_VS_MINIMAX:
+            self.human_players = []  # Nenhum jogador humano
+        else:
+            # Garante um estado padrão seguro se o modo for desconhecido
+            self.human_players = [0, 1]
+            self.mensagem = f"Modo '{mode.value}' desconhecido. Padrão para H vs H."
 
-        # Draw walls
-        for i in range(LINHAS):
-            for j in range(COLUNAS):
-                square = self.jogo.tabuleiro[i][j]
+        self.game_state = GameState.PLAYING
 
-                # Draw horizontal wall segment below square (i,j) if movement down is blocked
-                if not square.pode_mover_para_baixo and i < LINHAS - 1:
-                    pygame.draw.rect(
-                        screen,
-                        WALL_COLOR,
-                        (
-                            self.board_offset_x + j * self.cell_size,
-                            self.board_offset_y
-                            + (i + 1) * self.cell_size
-                            - self.wall_thickness // 2,
-                            self.cell_size,  # Wall segment is 1 cell wide
-                            self.wall_thickness,
-                        ),
-                    )
+    def _handle_title_screen_input(self, event):
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            for btn_info in self.buttons.values():
+                if btn_info["rect"].collidepoint(event.pos):
+                    self._start_game(btn_info["mode"])
+                    break
 
-                # Draw vertical wall segment to the right of square (i,j) if movement right is blocked
-                if not square.pode_mover_para_direita and j < COLUNAS - 1:
-                    pygame.draw.rect(
-                        screen,
-                        WALL_COLOR,
-                        (
-                            self.board_offset_x
-                            + (j + 1) * self.cell_size
-                            - self.wall_thickness // 2,
-                            self.board_offset_y + i * self.cell_size,
-                            self.wall_thickness,
-                            self.cell_size,  # Wall segment is 1 cell high
-                        ),
-                    )
-
-        # Draw temporary wall being placed
-        if self.colocando_parede and self.parede_temp:
-            col, row = self.parede_temp
-            if self.parede_orientacao == "h":
-                pygame.draw.rect(
-                    screen,
-                    (WALL_COLOR[0], WALL_COLOR[1], WALL_COLOR[2], 128),
-                    (
-                        self.board_offset_x + col * self.cell_size,
-                        self.board_offset_y
-                        + (row + 1) * self.cell_size
-                        - self.wall_thickness // 2,
-                        self.cell_size * 2,
-                        self.wall_thickness,
-                    ),
-                )
-            else:  # vertical
-                pygame.draw.rect(
-                    screen,
-                    (WALL_COLOR[0], WALL_COLOR[1], WALL_COLOR[2], 128),
-                    (
-                        self.board_offset_x
-                        + (col + 1) * self.cell_size
-                        - self.wall_thickness // 2,
-                        self.board_offset_y + row * self.cell_size,
-                        self.wall_thickness,
-                        self.cell_size * 2,
-                    ),
-                )
-
-        # Draw players
-        j1_linha, j1_coluna = self.jogo.jogadores["J1"]
-        j2_linha, j2_coluna = self.jogo.jogadores["J2"]
-
-        # Player 1 (human)
-        pygame.draw.circle(
-            screen,
-            PLAYER1_COLOR,
-            (
-                self.board_offset_x + j1_coluna * self.cell_size + self.cell_size // 2,
-                self.board_offset_y + j1_linha * self.cell_size + self.cell_size // 2,
-            ),
-            self.cell_size // 3,
-        )
-
-        # Player 2 (AI)
-        pygame.draw.circle(
-            screen,
-            PLAYER2_COLOR,
-            (
-                self.board_offset_x + j2_coluna * self.cell_size + self.cell_size // 2,
-                self.board_offset_y + j2_linha * self.cell_size + self.cell_size // 2,
-            ),
-            self.cell_size // 3,
-        )
-
-        # Draw remaining walls count
-        p1_walls = font.render(
-            f"P1 Walls: {self.jogo.paredes_restantes['J1']}", True, PLAYER1_COLOR
-        )
-        p2_walls = font.render(
-            f"P2 Walls: {self.jogo.paredes_restantes['J2']}", True, PLAYER2_COLOR
-        )
-        screen.blit(p1_walls, (10, ALTURA - 60))
-        screen.blit(p2_walls, (10, ALTURA - 30))
-
-        # Draw current turn and message
-        turn_text = font.render(
-            f"Turno: {'Jogador 1' if self.turno == 0 else 'IA'}", True, BLACK
-        )
-        message_text = font.render(self.mensagem, True, BLACK)
-        screen.blit(turn_text, (LARGURA - 200, ALTURA - 60))
-        screen.blit(
-            message_text, (LARGURA // 2 - message_text.get_width() // 2, ALTURA - 30)
-        )
-
-        # Draw controls help
-        if self.turno == 0 and not self.jogo_terminado:
-            if self.colocando_parede:
-                help_text = font.render(
-                    "Clique para colocar parede, R para rotacionar, ESC para cancelar",
-                    True,
-                    BLACK,
-                )
-            else:
-                help_text = font.render(
-                    "WASD/Setas para mover, P para colocar parede", True, BLACK
-                )
-            screen.blit(help_text, (LARGURA // 2 - help_text.get_width() // 2, 10))
-
-    def get_cell_from_pos(self, pos):
-        x, y = pos
-        # Adjust for board offset
-        x -= self.board_offset_x
-        y -= self.board_offset_y
-
-        col = x // self.cell_size
-        row = y // self.cell_size
-        if 0 <= col < COLUNAS and 0 <= row < LINHAS:
-            return row, col
-        return None
-
-    def place_wall(self, pos):
-        cell = self.get_cell_from_pos(pos)
-        if not cell:
-            return False
-
-        row, col = cell
-        # Convert to game notation (e.g., "e5h")
-        col_letter = chr(ord("a") + col)
-        row_num = row + 1
-        notation = f"{col_letter}{row_num}{self.parede_orientacao}"
-
-        # Try to place the wall
-        return self.jogo.colocar_parede(notation, self.turno)
-
-    def ai_turn(self):
-        self.mensagem = "IA está pensando..."
-        self.draw_board()
-        pygame.display.flip()
-
-        inicio = time.time()
-        movimento = escolher_movimento_ai(
-            self.jogo,
-            self.turno,
-            profundidade=PROFUNDIDADE_PADRAO,
-            usar_poda=USAR_PODA_ALFABETA,
-            usar_iterative_deepening=USAR_ITERATIVE_DEEPENING,
-            tempo_limite=TEMPO_LIMITE_AI,
-        )
-        tempo_total = time.time() - inicio
-
-        if movimento is None:
-            self.mensagem = "IA não encontrou movimento válido. Fim de jogo."
-            self.jogo_terminado = True
+    def _handle_game_input(self, event):
+        if self.turno not in self.human_players or self.jogo.jogo_terminado:
             return
 
-        tipo, valor = movimento
-        if tipo == "move":
-            direcoes = {"w": "cima", "a": "esquerda", "s": "baixo", "d": "direita"}
-            direcao_texto = direcoes.get(valor, valor)
-            self.jogo.andar(valor, self.turno)
-            self.mensagem = (
-                f"IA moveu para {direcao_texto} ({valor}) em {tempo_total:.2f}s"
-            )
-        elif tipo == "wall":
-            self.jogo.colocar_parede(valor, self.turno)
-            self.mensagem = (
-                f"IA colocou parede na posição {valor} em {tempo_total:.2f}s"
-            )
+        # --- Manipulação de Eventos --- #
 
-        # Check for victory
-        if self.jogo.verificar_vitoria():
-            self.jogo_terminado = True
+        # 1. Movimento do mouse para preview da parede
+        if event.type == pygame.MOUSEMOTION and self.colocando_parede:
+            mx, my = event.pos
+            ox, oy = config.BOARD_OFFSET_X, config.BOARD_OFFSET_Y
+            cs = config.CELL_SIZE
+            col = (mx - ox) // cs
+            row = (my - oy) // cs
+
+            # A parede deve começar dentro da grade de 8x8 de posições de parede
+            if 0 <= col < 8 and 0 <= row < 8:
+                self.parede_temp_pos = (col, row)
+            else:
+                self.parede_temp_pos = None
+
+        # 2. Clique do mouse para colocar a parede
+        elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1 and self.colocando_parede:
+            if self.parede_temp_pos:
+                col, row = self.parede_temp_pos
+                letra_coluna = chr(ord('a') + col)
+                numero_linha = str(row + 1)
+                notacao_parede = f"{letra_coluna}{numero_linha}{self.parede_orientacao}"
+                movimento_tupla = ('parede', notacao_parede)
+
+                if self.jogo.aplicar_movimento(movimento_tupla, self.turno):
+                    self.mensagem = f"Jogador {self.turno + 1} colocou uma parede."
+                    self.turno = 1 - self.turno
+                else:
+                    self.mensagem = "Posição de parede inválida."
+
+                # Sai do modo de colocação de parede após a tentativa
+                self.colocando_parede = False
+                self.parede_temp_pos = None
+
+        # 3. Teclado para modos e movimento
+        elif event.type == pygame.KEYDOWN:
+            # Tecla 'p' para entrar/sair do modo de colocação de parede
+            if event.key == pygame.K_p:
+                self.colocando_parede = not self.colocando_parede
+                self.parede_temp_pos = None  # Limpa o preview ao mudar de modo
+                if self.colocando_parede:
+                    self.mensagem = "Modo Parede: 'r' para girar, clique para colocar."
+                else:
+                    self.mensagem = ""
+                return
+
+            # Tecla 'r' para girar a parede
+            if event.key == pygame.K_r and self.colocando_parede:
+                self.parede_orientacao = 'v' if self.parede_orientacao == 'h' else 'h'
+                return
+
+            # Movimento do peão (só se não estiver colocando parede)
+            if not self.colocando_parede:
+                movimento_str = None
+                if event.key == pygame.K_w:
+                    movimento_str = "w"
+                elif event.key == pygame.K_s:
+                    movimento_str = "s"
+                elif event.key == pygame.K_a:
+                    movimento_str = "a"
+                elif event.key == pygame.K_d:
+                    movimento_str = "d"
+
+                if movimento_str:
+                    movimento_tupla = ('mover', movimento_str)
+                    if self.jogo.aplicar_movimento(movimento_tupla, self.turno):
+                        self.mensagem = f"Jogador {self.turno + 1} moveu o peão."
+                        self.turno = 1 - self.turno
+                    else:
+                        self.mensagem = "Movimento de peão inválido."
+
+    def _update_game(self):
+        # Se um vencedor foi encontrado e o estado da GUI ainda não foi atualizado
+        if self.jogo.verificar_vitoria() and self.game_state != GameState.GAME_OVER:
+            self.game_state = GameState.GAME_OVER
+            vencedor_num = 1 if self.jogo.vencedor == "J1" else 2
+            self.mensagem = f"Fim de Jogo! Vencedor: Jogador {vencedor_num}"
+            return  # Fim do update, o jogo acabou.
+
+        # Log de depuração para verificar o estado do turno e dos jogadores humanos
+        #print(f"[DEBUG] Verificando turno: self.turno={self.turno}, self.human_players={self.human_players}")
+
+        if self.turno not in self.human_players and not self.ai_is_thinking:
+            self._ai_turn()
+            pygame.time.wait(200)  # Pausa para visualizar jogada da IA
+
+    def _draw(self):
+        """Desenha a tela com base no estado atual do jogo."""
+        self.screen.fill(config.COR_FUNDO)
+
+        if self.game_state == GameState.TITLE_SCREEN:
+            gui_drawing.draw_title_screen(self.screen, self.buttons)
+        else:
+            # Garante que o jogo não é None antes de tentar desenhar
+            if self.jogo:
+                gui_drawing.draw_game(
+                    self.screen,
+                    self.jogo,
+                    self.turno,  # jogador_atual
+                    self.colocando_parede,
+                    self.parede_orientacao,
+                    self.parede_temp_pos,
+                    self.mensagem,
+                    self.jogo.paredes_restantes  # Adicionado paredes_restantes
+                )
+
+        pygame.display.flip()
+
+    def _ai_turn(self):
+        """Executa o movimento de uma das IAs, dependendo do modo de jogo."""
+        self.ai_is_thinking = True
+        movimento_tupla = None
+        jogador_idx = self.turno
+        agent_name = ""
+
+        try:
+            # Modo: Humano vs. Minimax
+            if self.game_mode == GameMode.HUMAN_VS_MINIMAX and jogador_idx == 1:
+                agent_name = "Minimax"
+                print(f"Turno do {agent_name} (Jogador {jogador_idx + 1})")
+                movimento_tupla = escolher_movimento_ai(self.jogo, jogador_idx, profundidade=2)
+
+            # Modo: Humano vs. Q-Learning
+            elif self.game_mode == GameMode.HUMAN_VS_Q_LEARNING and jogador_idx == 1:
+                agent_name = "Q-Learning"
+                if self.q_learning_agent:
+                    print(f"Turno do {agent_name} (Jogador {jogador_idx + 1})")
+                    estado = self.jogo.get_estado_tupla(jogador_idx)
+                    acoes_validas = self.jogo.get_acoes_validas(jogador_idx)
+                    movimento_tupla = self.q_learning_agent.escolher_acao(estado, acoes_validas)
+                else:
+                    print("ERRO: Agente Q-Learning não foi carregado.")
+
+            # Modo: Q-Learning vs. Minimax
+            elif self.game_mode == GameMode.Q_LEARNING_VS_MINIMAX:
+                if jogador_idx == 0:  # Vez do Q-Learning (J1)
+                    agent_name = "Q-Learning"
+                    if self.q_learning_agent:
+                        print(f"Turno do {agent_name} (Jogador {jogador_idx + 1})")
+                        estado = self.jogo.get_estado_tupla(jogador_idx)
+                        acoes_validas = self.jogo.get_acoes_validas(jogador_idx)
+                        movimento_tupla = self.q_learning_agent.escolher_acao(estado, acoes_validas)
+                    else:
+                        print("ERRO: Agente Q-Learning não foi carregado.")
+                else:  # Vez do Minimax (J2)
+                    agent_name = "Minimax"
+                    print(f"Turno do {agent_name} (Jogador {jogador_idx + 1})")
+                    movimento_tupla = escolher_movimento_ai(self.jogo, jogador_idx, profundidade=2)
+
+            # Aplica o movimento se um foi escolhido pela IA
+            if movimento_tupla:
+                sucesso = self.jogo.aplicar_movimento(movimento_tupla, jogador_idx)
+                if sucesso:
+                    tipo_mov, valor_mov = movimento_tupla
+                    acao_desc = f"moveu para {valor_mov}" if tipo_mov == 'mover' else f"colocou parede em {valor_mov}"
+                    self.mensagem = f"IA ({agent_name}) jogou: {acao_desc}"
+                    self.turno = 1 - self.turno
+                else:
+                    self.mensagem = f"ERRO CRÍTICO: IA ({agent_name}) gerou mov. inválido: {movimento_tupla}"
+                    print(self.mensagem)
+            elif agent_name:  # Se um agente deveria jogar mas não retornou movimento
+                self.mensagem = f"AVISO: {agent_name} não retornou um movimento. Passando o turno."
+                print(self.mensagem)
+                self.turno = 1 - self.turno  # Passa o turno para evitar loop infinito
+
+        finally:
+            self.ai_is_thinking = False  # Libera a trava da IA, aconteça o que acontecer
 
     def run(self):
+        """Loop principal do jogo."""
         running = True
-
         while running:
-            # Process events
+            # --- Processamento de Eventos ---
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     running = False
 
-                if not self.jogo_terminado:
-                    if self.turno == 0:  # Human player's turn
-                        if event.type == pygame.KEYDOWN:
-                            if not self.colocando_parede:
-                                # Movement controls
-                                if event.key in [pygame.K_w, pygame.K_UP]:
-                                    if self.jogo.andar("w", self.turno):
-                                        self.mensagem = "Jogador 1 moveu para cima"
-                                        self.turno = (self.turno + 1) % 2
-                                elif event.key in [pygame.K_s, pygame.K_DOWN]:
-                                    if self.jogo.andar("s", self.turno):
-                                        self.mensagem = "Jogador 1 moveu para baixo"
-                                        self.turno = (self.turno + 1) % 2
-                                elif event.key in [pygame.K_a, pygame.K_LEFT]:
-                                    if self.jogo.andar("a", self.turno):
-                                        self.mensagem = "Jogador 1 moveu para esquerda"
-                                        self.turno = (self.turno + 1) % 2
-                                elif event.key in [pygame.K_d, pygame.K_RIGHT]:
-                                    if self.jogo.andar("d", self.turno):
-                                        self.mensagem = "Jogador 1 moveu para direita"
-                                        self.turno = (self.turno + 1) % 2
-                                # Wall placement mode
-                                elif event.key == pygame.K_p:
-                                    if self.jogo.paredes_restantes["J1"] > 0:
-                                        self.colocando_parede = True
-                                        self.mensagem = (
-                                            "Selecione onde colocar a parede"
-                                        )
-                                    else:
-                                        self.mensagem = "Você não tem mais paredes!"
-                            else:  # In wall placement mode
-                                if event.key == pygame.K_r:  # Rotate wall
-                                    self.parede_orientacao = (
-                                        "v" if self.parede_orientacao == "h" else "h"
-                                    )
-                                elif (
-                                    event.key == pygame.K_ESCAPE
-                                ):  # Cancel wall placement
-                                    self.colocando_parede = False
-                                    self.parede_temp = None
-                                    self.mensagem = "Colocação de parede cancelada"
+                if self.game_state == GameState.TITLE_SCREEN:
+                    self._handle_title_screen_input(event)
+                else:
+                    self._handle_game_input(event)
 
-                        elif event.type == pygame.MOUSEMOTION and self.colocando_parede:
-                            # Update temporary wall position
-                            cell = self.get_cell_from_pos(event.pos)
-                            if cell:
-                                row, col = cell
-                                self.parede_temp = (col, row)
+            if self.game_state == GameState.PLAYING:
+                self._update_game()
 
-                        elif (
-                            event.type == pygame.MOUSEBUTTONDOWN
-                            and self.colocando_parede
-                        ):
-                            # Try to place the wall
-                            if self.place_wall(event.pos):
-                                self.mensagem = "Parede colocada com sucesso"
-                                self.colocando_parede = False
-                                self.parede_temp = None
-                                self.turno = (self.turno + 1) % 2
-                            else:
-                                self.mensagem = "Não é possível colocar a parede aqui"
-
-            # AI turn
-            if not self.jogo_terminado and self.turno == 1:
-                self.ai_turn()
-                self.turno = (self.turno + 1) % 2
-
-            # Check for victory
-            if not self.jogo_terminado and self.jogo.verificar_vitoria():
-                self.jogo_terminado = True
-                winner = (
-                    "Jogador 1"
-                    if self.jogo.jogadores["J1"][0] == 8
-                    else "Jogador 2 (IA)"
-                )
-                self.mensagem = f"{winner} venceu o jogo!"
-
-            # Draw everything
-            self.draw_board()
-
-            # Update display
-            pygame.display.flip()
-            clock.tick(30)
+            self._draw()
+            self.clock.tick(30)
 
         pygame.quit()
+        sys.exit()
 
 
 if __name__ == "__main__":
-    game = QuoridorGUI()
-    game.run()
+    gui = QuoridorGUI()
+    gui.run()

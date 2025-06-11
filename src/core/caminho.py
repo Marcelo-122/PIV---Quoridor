@@ -1,7 +1,11 @@
 from collections import deque
 
 def existe_caminho(jogador, linha_inicial, coluna_inicial, tabuleiro):
-    visitado = [[False for _ in range(9)] for _ in range(9)]
+    # Determinar as dimensões do tabuleiro dinamicamente
+    num_linhas = len(tabuleiro)
+    num_colunas = len(tabuleiro[0]) if num_linhas > 0 else 0
+    
+    visitado = [[False for _ in range(num_colunas)] for _ in range(num_linhas)]
     fila = deque()
     fila.append((linha_inicial, coluna_inicial))
 
@@ -14,7 +18,7 @@ def existe_caminho(jogador, linha_inicial, coluna_inicial, tabuleiro):
         visitado[linha][coluna] = True
 
         # Condição de vitória
-        if (jogador == "J1" and linha == 8) or (jogador == "J2" and linha == 0):
+        if (jogador == "J1" and linha == num_linhas - 1) or (jogador == "J2" and linha == 0):
             return True
 
         # Verificações de movimento usando tabuleiro
@@ -27,7 +31,7 @@ def existe_caminho(jogador, linha_inicial, coluna_inicial, tabuleiro):
             fila.append((linha - 1, coluna))
         # BAIXO
         if (
-            linha < 8
+            linha < num_linhas - 1
             and tabuleiro[linha][coluna].pode_mover_para_baixo
             and not visitado[linha + 1][coluna]
         ):
@@ -41,7 +45,7 @@ def existe_caminho(jogador, linha_inicial, coluna_inicial, tabuleiro):
             fila.append((linha, coluna - 1))
         # DIREITA
         if (
-            coluna < 8
+            coluna < num_colunas - 1
             and tabuleiro[linha][coluna].pode_mover_para_direita
             and not visitado[linha][coluna + 1]
         ):

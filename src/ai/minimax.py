@@ -1,5 +1,5 @@
 import time
-from src.core.movimento_util import gerar_movimentos_possiveis, criar_move_info, aplicar_movimento, atualizar_move_info, hash_estado, BEST_FIRST_MOVES
+from src.core.movimento_util import gerar_movimentos_possiveis, criar_mover_info, aplicar_movimento, atualizar_mover_info, hash_estado, BEST_FIRST_MOVES
 from .minimax_core import melhor_jogada_agente_poda_com_valor
 
 # Tabela de transposição para armazenar estados já calculados
@@ -32,8 +32,14 @@ def iterative_deepening(jogo, turno, tempo_limite=2.0, profundidade_maxima=6, us
     posicao_inicial_j1 = (0, 4)
     posicao_inicial_j2 = (8, 4)
     if jogo.jogadores['J1'] == posicao_inicial_j1 and jogo.jogadores['J2'] == posicao_inicial_j2:
-        print(f"Usando movimentos otimizados de abertura para {jogador}")
-        return BEST_FIRST_MOVES[jogador][0]  # Retorna o primeiro movimento da lista de melhores aberturas
+        movimento_otimizado = BEST_FIRST_MOVES[jogador][0]
+        movimentos_legais = gerar_movimentos_possiveis(jogo, turno, ordenar=False) # Não precisa ordenar aqui
+
+        if movimento_otimizado in movimentos_legais:
+            print(f"Usando movimento otimizado de abertura para {jogador}: {movimento_otimizado}")
+            return movimento_otimizado
+        else:
+            print(f"Movimento otimizado {movimento_otimizado} bloqueado. Buscando a melhor jogada..." )
     
     # Começa com profundidade 1 e vai aumentando
     for profundidade in range(1, profundidade_maxima + 1):
@@ -77,9 +83,9 @@ def melhor_jogada_agente_poda(jogo, turno, profundidade_maxima=4):
         profundidade_maxima, 
         transposition_table,
         gerar_movimentos_possiveis,
-        criar_move_info,
+        criar_mover_info,
         aplicar_movimento,
-        atualizar_move_info,
+        atualizar_mover_info,
         hash_estado
     )
 
