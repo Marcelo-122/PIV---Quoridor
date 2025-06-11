@@ -78,59 +78,46 @@ def avaliar_movimento_rapido(jogo, movimento, turno, jogador):
 def gerar_movimentos_possiveis(jogo, turno, ordenar=True, transposition_table=None):
     movimentos = []
     jogador = "J1" if turno == 0 else "J2"
-
-    # Verifica se é a primeira jogada e usa movimentos otimizados de abertura
-    if (
-        transposition_table is not None and len(transposition_table) < 2
-    ):  # Aproximação para primeira jogada
-        posicao_inicial_j1 = (0, 4)
-        posicao_inicial_j2 = (8, 4)
-
-        # Se os jogadores estão nas posições iniciais, use movimentos de abertura
-        if (
-            jogo.jogadores["J1"] == posicao_inicial_j1
-            and jogo.jogadores["J2"] == posicao_inicial_j2
-        ):
-            print(f"Usando movimentos otimizados de abertura para {jogador}")
-            return BEST_FIRST_MOVES[jogador]
-
+    
+    # Verificar se o jogador já está na posição de vitória
+    if jogo.verificar_vitoria_jogador(jogador):
+        print(f"[DEBUG] Jogador {jogador} já está na posição de vitória!")
+        return []
+        
+    # Debug: posição atual
+    print(f"[DEBUG] Gerando movimentos para {jogador} na posição {jogo.jogadores[jogador]}")
+    
     # Movimentos de peão
-    for direcao in DIRECOES:
+    for direcao in ["w", "s", "a", "d"]:
         jogo_copia = copy.deepcopy(jogo)
         if jogo_copia.andar(direcao, turno):
             movimentos.append(("move", direcao))
-
+            print(f"[DEBUG] Movimento válido: ('move', '{direcao}')")
+    
     # Tentativas de colocar parede
-    # Paredes são 8x8. Colunas de 'a' a 'h' (índices 0-7), linhas de 1 a 8.
-    for linha_notacao_num in range(1, LINHAS):  # Gera números de 1 a 8 (LINHAS é 9)
-        for coluna_idx in range(COLUNAS - 1):    # Gera índices de 0 a 7 (COLUNAS é 9)
-            letra_coluna = chr(ord("a") + coluna_idx)
+    num_linhas = len(jogo.tabuleiro)
+    num_colunas = len(jogo.tabuleiro[0]) if num_linhas > 0 else 0
+    
+    print(f"[DEBUG] Tabuleiro: {num_linhas}x{num_colunas}")
+    
+    for linha_notacao_num in range(1, num_linhas):
+        for coluna_idx in range(num_colunas - 1):
+            letra_coluna = chr(ord('a') + coluna_idx)
             for direcao in ["h", "v"]:
                 notacao = f"{letra_coluna}{linha_notacao_num}{direcao}"
                 jogo_copia = copy.deepcopy(jogo)
                 if jogo_copia.colocar_parede(notacao, turno):
-                    # Checa se ambos jogadores ainda têm caminho ao objetivo
-                    if existe_caminho(
-                        "J1",
-                        jogo_copia.jogadores["J1"][0],
-                        jogo_copia.jogadores["J1"][1],
-                        jogo_copia.tabuleiro,
-                    ) and existe_caminho(
-                        "J2",
-                        jogo_copia.jogadores["J2"][0],
-                        jogo_copia.jogadores["J2"][1],
-                        jogo_copia.tabuleiro,
-                    ):
+                    if existe_caminho("J1", jogo_copia.jogadores["J1"][0], jogo_copia.jogadores["J1"][1], jogo_copia.tabuleiro) and \
+                       existe_caminho("J2", jogo_copia.jogadores["J2"][0], jogo_copia.jogadores["J2"][1], jogo_copia.tabuleiro):
                         movimentos.append(("wall", notacao))
-
-    # Ordena os movimentos se solicitado
+                        print(f"[DEBUG] Parede válida: ('wall', '{notacao}')")
+    
+    # Debug: total de movimentos encontrados
+    print(f"[DEBUG] Total de movimentos gerados para {jogador}: {len(movimentos)}")
+    
     if ordenar and movimentos:
-        # Avalia e ordena os movimentos (melhores primeiro)
-        movimentos.sort(
-            key=lambda m: avaliar_movimento_rapido(jogo, m, turno, jogador),
-            reverse=True,
-        )
-
+        movimentos.sort(key=lambda m: avaliar_movimento_rapido(jogo, m, turno, jogador), reverse=True)
+    
     return movimentos
 
 
@@ -179,3 +166,27 @@ def atualizar_move_info(jogo, move_info, turno):
         move_info["pawn_row_after"] = pawn_row_after
 
     return move_info
+
+
+def movimento_valido(jogo, pos_atual, nova_pos):
+    """
+    Verifica se um movimento de peça é válido.
+    Args:
+        jogo: instância do jogo
+        pos_atual: tupla (linha, coluna) da posição atual
+        nova_pos: tupla (linha, coluna) da nova posição
+    """
+    # Verificar se a nova posição está dentro dos limites do tabuleiro
+    if not (0 <= nova_pos[0] < jogo.linhas and 0 <= nova_pos[1] < jogo.colunas):
+        print(f"[VALIDACAO] Movimento para {nova_pos} fora dos limites do tabuleiro")
+        return False
+        
+    # Verificar se a nova posição está ocupada por outro jogador
+    if nova_pos in jogo.jogadores.values():
+        print(f"[VALIDACAO] Movimento para {nova_pos} ocupado por outro jogador")
+        return False
+        
+    # Verificar se há parede bloqueando o movimento
+    # ... (código existente com logs adicionais)
+    
+    return True

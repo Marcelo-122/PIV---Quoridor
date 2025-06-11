@@ -6,14 +6,18 @@ def colocar_parede(self, notacao, turno):
     letra_coluna, numero_linha, direcao = notacao
     coluna = ord(letra_coluna) - ord("a")
     linha = int(numero_linha) - 1
+    
+    # Determinar dimensões do tabuleiro
+    num_linhas = len(self.tabuleiro)
+    num_colunas = len(self.tabuleiro[0]) if num_linhas > 0 else 0
 
     if direcao == "h":
-        if linha < 8 and coluna < 8:
+        if linha < num_linhas - 1 and coluna < num_colunas - 1:
             if not self.tabuleiro[linha][coluna].pode_mover_para_baixo or not self.tabuleiro[linha][coluna + 1].pode_mover_para_baixo:
                 # print("Já existe uma parede aqui! (Sobreposição)")
                 return False
             if (coluna > 0 and not self.tabuleiro[linha][coluna-1].pode_mover_para_direita and not self.tabuleiro[linha+1][coluna-1].pode_mover_para_direita) or \
-               (coluna < 8 and not self.tabuleiro[linha][coluna].pode_mover_para_direita and not self.tabuleiro[linha+1][coluna].pode_mover_para_direita):
+               (coluna < num_colunas - 1 and not self.tabuleiro[linha][coluna].pode_mover_para_direita and not self.tabuleiro[linha+1][coluna].pode_mover_para_direita):
                 if not self.tabuleiro[linha][coluna].pode_mover_para_direita and not self.tabuleiro[linha+1][coluna].pode_mover_para_direita:
                     # print("Muro cruzaria com um existente!")
                     return False
@@ -27,7 +31,7 @@ def colocar_parede(self, notacao, turno):
             return False
 
     elif direcao == "v":
-        if linha < 8 and coluna > 0:
+        if linha < num_linhas - 1 and coluna > 0:
             if not self.tabuleiro[linha][coluna - 1].pode_mover_para_direita or not self.tabuleiro[linha + 1][coluna - 1].pode_mover_para_direita:
                 # print("Já existe uma parede aqui! (Sobreposição)")
                 return False

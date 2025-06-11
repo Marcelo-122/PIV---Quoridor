@@ -1,10 +1,14 @@
 from collections import deque
 
 def shortest_path_length(jogador, pos, tabuleiro):
-    visitado = [[False for _ in range(9)] for _ in range(9)]
+    # Determinar as dimensões do tabuleiro dinamicamente
+    num_linhas = len(tabuleiro)
+    num_colunas = len(tabuleiro[0]) if num_linhas > 0 else 0
+    
+    visitado = [[False for _ in range(num_colunas)] for _ in range(num_linhas)]
     fila = deque()
     fila.append((pos[0], pos[1], 0))  # (linha, coluna, distancia)
-    objetivo = 8 if jogador == "J1" else 0
+    objetivo = num_linhas - 1 if jogador == "J1" else 0
 
     while fila:
         linha, coluna, dist = fila.popleft()
@@ -19,11 +23,11 @@ def shortest_path_length(jogador, pos, tabuleiro):
         # Movimentos possíveis
         if linha > 0 and tabuleiro[linha][coluna].pode_mover_para_cima and not visitado[linha-1][coluna]:
             fila.append((linha-1, coluna, dist+1))
-        if linha < 8 and tabuleiro[linha][coluna].pode_mover_para_baixo and not visitado[linha+1][coluna]:
+        if linha < num_linhas - 1 and tabuleiro[linha][coluna].pode_mover_para_baixo and not visitado[linha+1][coluna]:
             fila.append((linha+1, coluna, dist+1))
         if coluna > 0 and tabuleiro[linha][coluna].pode_mover_para_esquerda and not visitado[linha][coluna-1]:
             fila.append((linha, coluna-1, dist+1))
-        if coluna < 8 and tabuleiro[linha][coluna].pode_mover_para_direita and not visitado[linha][coluna+1]:
+        if coluna < num_colunas - 1 and tabuleiro[linha][coluna].pode_mover_para_direita and not visitado[linha][coluna+1]:
             fila.append((linha, coluna+1, dist+1))
     return 99  # Sem caminho
 

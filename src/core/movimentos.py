@@ -11,7 +11,8 @@ def andar(self, direcao, turno):
     d_linha, d_coluna = movimentos[direcao]
     nova_linha, nova_coluna = linha + d_linha, coluna + d_coluna
 
-    if not (0 <= nova_linha < 9 and 0 <= nova_coluna < 9):
+    # Usar dimensões dinâmicas do tabuleiro
+    if not (0 <= nova_linha < self.linhas and 0 <= nova_coluna < self.colunas):
         #print("Movimento fora dos limites!")
         return False
 
@@ -21,7 +22,7 @@ def andar(self, direcao, turno):
             #print("Há uma parede bloqueando o caminho!")
             return False
     if direcao == "s":
-        if linha == 8 or not self.tabuleiro[linha][coluna].pode_mover_para_baixo:
+        if linha == self.linhas - 1 or not self.tabuleiro[linha][coluna].pode_mover_para_baixo:
            # print("Há uma parede bloqueando o caminho!")
             return False
     if direcao == "a":
@@ -29,17 +30,17 @@ def andar(self, direcao, turno):
            # print("Há uma parede bloqueando o caminho!")
             return False
     if direcao == "d":
-        if coluna == 8 or not self.tabuleiro[linha][coluna].pode_mover_para_direita:
+        if coluna == self.colunas - 1 or not self.tabuleiro[linha][coluna].pode_mover_para_direita:
            # print("Há uma parede bloqueando o caminho!")
             return False
 
     # Atualiza o tabuleiro se ele existir
     if hasattr(self, "tabuleiro"):
         # Limpa a posição antiga
-        if 0 <= linha < 9 and 0 <= coluna < 9:
+        if 0 <= linha < self.linhas and 0 <= coluna < self.colunas:
             self.tabuleiro[linha][coluna].tem_jogador = False
         # Define a nova posição
-        if 0 <= nova_linha < 9 and 0 <= nova_coluna < 9:
+        if 0 <= nova_linha < self.linhas and 0 <= nova_coluna < self.colunas:
             self.tabuleiro[nova_linha][nova_coluna].tem_jogador = True
 
     self.jogadores[jogador] = (nova_linha, nova_coluna)
