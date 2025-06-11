@@ -5,8 +5,6 @@ from enum import Enum, auto
 import pygame
 # Importações do projeto e da GUI devem vir após a manipulação do sys.path,
 # mas todas as importações devem ser agrupadas o máximo possível.
-from src.ai.dqn_agent import AgenteDQN  # noqa: E402
-from src.ai.dqn_config_acoes import TAMANHO_ESTADO, TOTAL_ACOES  # noqa: E402
 from src.ai.minimax import escolher_movimento_ai  # noqa: E402
 from src.core.constantes import (
     LARGURA,  # Apenas LARGURA é usada diretamente aqui para botões  # noqa: E402
@@ -32,8 +30,7 @@ class GameState(Enum):
 class GameMode(Enum):
     HUMAN_VS_HUMAN = "Humano vs Humano"
     HUMAN_VS_MINIMAX = "Humano vs Minimax"
-    HUMAN_VS_DQN = "Humano vs DQN"
-    MINIMAX_VS_DQN = "Minimax vs DQN"
+    # Modos com DQN removidos
 
 
 class QuoridorGUI:
@@ -46,7 +43,6 @@ class QuoridorGUI:
         self.game_state = GameState.TITLE_SCREEN
         self.game_mode = None
         self.jogo = None
-        self.ai_agent_dqn = None
         self.mensagem = ""
         self.human_players = []
         self.turno = 0  # 0 para Jogador 1, 1 para Jogador 2
@@ -76,9 +72,10 @@ class QuoridorGUI:
 
     def _start_game(self, mode: GameMode):
         self.game_mode = mode
-        self.jogo = JogoQuoridor()
+        # Usar tabuleiro 5x5 com 3 paredes por jogador, consistente com o script de treinamento
+        self.jogo = JogoQuoridor(linhas=5, colunas=5, total_paredes_jogador=3)
         self.human_players = []
-        self.ai_agent_dqn = None
+        # Removido agente DQN
         self.turno = 0
         self.mensagem = f"Modo: {mode.value}"
 
@@ -86,49 +83,8 @@ class QuoridorGUI:
             self.human_players = [0, 1]
         elif mode == GameMode.HUMAN_VS_MINIMAX:
             self.human_players = [0]  # Humano é J1 (índice 0)
-        elif mode == GameMode.HUMAN_VS_DQN:
-            self.human_players = [0]  # Humano é J1 (índice 0)
-            self._setup_dqn_agent()
-        elif mode == GameMode.MINIMAX_VS_DQN:
-            self.human_players = []
-            self._setup_dqn_agent()
 
         self.game_state = GameState.PLAYING
-
-    def _setup_dqn_agent(self):
-        print("Configurando agente DQN...")
-        self.ai_agent_dqn = AgenteDQN(
-            tamanho_estado=TAMANHO_ESTADO, tamanho_acao=TOTAL_ACOES
-        )
-        try:
-            # Usa config.DQN_MODEL_DIR
-            model_files = [
-                f
-                for f in os.listdir(config.DQN_MODEL_DIR)
-                if f.endswith((".h5", ".keras"))
-            ]
-            if not model_files:
-                self.mensagem = "AVISO: Nenhum modelo DQN encontrado."
-                print(f"AVISO: Nenhum modelo em {config.DQN_MODEL_DIR}")
-                return
-
-            latest_model_file = max(
-                model_files,
-                key=lambda f: os.path.getmtime(os.path.join(config.DQN_MODEL_DIR, f)),
-            )
-            model_path = os.path.join(config.DQN_MODEL_DIR, latest_model_file)
-            print(f"Carregando modelo: {model_path}")
-            self.ai_agent_dqn.carregar_modelo(
-                model_path, compile=False
-            )  # compile=False é crucial
-            self.ai_agent_dqn.epsilon = 0  # Modo de jogo (sem exploração)
-            print("Agente DQN carregado com sucesso.")
-        except Exception as e:
-            print(f"Erro crítico ao carregar o modelo DQN: {e}")
-            self.mensagem = "ERRO ao carregar modelo DQN!"
-            self.ai_agent_dqn = (
-                None  # Garante que não tentaremos usar um agente que falhou ao carregar
-            )
 
     def _handle_title_screen_input(self, event):
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
@@ -205,7 +161,7 @@ class QuoridorGUI:
                     movimento_str = "d"
 
                 if movimento_str:
-                    movimento_tupla = ('move', movimento_str)
+                    movimento_tupla = ('mover', movimento_str)
                     if self.jogo.aplicar_movimento(movimento_tupla, self.turno):
                         self.mensagem = f"Jogador {self.turno + 1} moveu o peão."
                         self.turno = 1 - self.turno
@@ -222,11 +178,7 @@ class QuoridorGUI:
 
         if self.turno not in self.human_players:
             self._ai_turn()
-            if (
-                self.game_mode == GameMode.MINIMAX_VS_DQN
-                and not self.jogo.jogo_terminado
-            ):
-                pygame.time.wait(200)  # Pausa menor para agilizar
+            pygame.time.wait(200)  # Pausa para visualizar jogada da IA
 
     def _draw(self):
         """Desenha a tela com base no estado atual do jogo."""
@@ -240,11 +192,12 @@ class QuoridorGUI:
                 gui_drawing.draw_game(
                     self.screen,
                     self.jogo,
-                    self.mensagem,
-                    self.turno,
+                    self.turno,  # jogador_atual
                     self.colocando_parede,
                     self.parede_orientacao,
                     self.parede_temp_pos,
+                    self.mensagem,
+                    self.jogo.paredes_restantes  # Adicionado paredes_restantes
                 )
 
         pygame.display.flip()
@@ -254,29 +207,14 @@ class QuoridorGUI:
         movimento_tupla = None
         jogador_idx = self.turno
 
-        is_minimax_turn = (
-            self.game_mode == GameMode.HUMAN_VS_MINIMAX and jogador_idx == 1
-        ) or (self.game_mode == GameMode.MINIMAX_VS_DQN and jogador_idx == 0)
-        is_dqn_turn = (
-            self.game_mode == GameMode.HUMAN_VS_DQN and jogador_idx == 1
-        ) or (self.game_mode == GameMode.MINIMAX_VS_DQN and jogador_idx == 1)
+        is_minimax_turn = self.game_mode == GameMode.HUMAN_VS_MINIMAX and jogador_idx == 1
 
         if is_minimax_turn:
             print(f"Turno do Minimax (Jogador {jogador_idx + 1})")
             movimento_tupla = escolher_movimento_ai(
                 self.jogo, jogador_idx, profundidade=2
             )
-        elif is_dqn_turn:
-            print(f"Turno do DQN (Jogador {jogador_idx + 1})")
-            if self.ai_agent_dqn:
-                estado_vetor = self.jogo.get_dqn_state_vector(jogador_idx)
-                _, movimento_tupla = self.ai_agent_dqn.escolher_acao(
-                    estado_vetor, self.jogo, jogador_idx
-                )
-            else:
-                self.mensagem = "Erro: Agente DQN não carregado."
-                print("Erro: Agente DQN não carregado, não pode fazer movimento.")
-                return
+        # DQN removido
 
         if not movimento_tupla:
             self.mensagem = (
@@ -292,7 +230,7 @@ class QuoridorGUI:
         else:
             self.mensagem = f"ERRO: IA (Jogador {jogador_idx + 1}) tentou mov. inválido: {movimento_tupla}"
             print(
-                f"ERRO CRÍTICO: IA (J{jogador_idx + 1}) gerou mov. inválido: {movimento_tupla}. Estado: {self.jogo.get_dqn_state_vector(jogador_idx)}"
+                f"ERRO CRÍTICO: IA (J{jogador_idx + 1}) gerou mov. inválido: {movimento_tupla}"
             )
 
     def run(self):

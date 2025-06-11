@@ -21,8 +21,7 @@ FONT_DEFAULT = pygame.font.SysFont("Arial", 24)
 FONT_TITULO = pygame.font.SysFont("Arial", 48, bold=True)
 FONT_BOTAO = pygame.font.SysFont("Arial", 32)
 
-# --- Diretório do Modelo DQN ---
-DQN_MODEL_DIR = os.path.join(_project_root, "saved_models_dqn")
+# Diretório de modelos removido
 
 # --- Cores ---
 BG_COLOR = (240, 240, 240)

@@ -22,8 +22,10 @@ def andar(self, direcao, turno):
             #print("Há uma parede bloqueando o caminho!")
             return False
     if direcao == "s":
+        print(f"[DEBUG] Movimento para baixo (s): linha={linha}, linhas={self.linhas}, ultima_linha={self.linhas-1}")
+        print(f"[DEBUG] Pode mover para baixo = {self.tabuleiro[linha][coluna].pode_mover_para_baixo}")
         if linha == self.linhas - 1 or not self.tabuleiro[linha][coluna].pode_mover_para_baixo:
-           # print("Há uma parede bloqueando o caminho!")
+            print(f"[DEBUG] Movimento bloqueado: na_ultima_linha={linha == self.linhas-1}, parede_bloqueando={not self.tabuleiro[linha][coluna].pode_mover_para_baixo}")
             return False
     if direcao == "a":
         if coluna == 0 or not self.tabuleiro[linha][coluna].pode_mover_para_esquerda:

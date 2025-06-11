@@ -2,12 +2,10 @@ import datetime
 import os
 import random
 import sys
-import time
 
 from src.ai.q_learning_agent import AgenteQLearningTabular
 from src.core.game import JogoQuoridor
 import numpy as np
-import sys
 
 sys.path.append("src/core")
 from debug_utils import visualizar_tabuleiro

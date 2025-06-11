@@ -1,4 +1,4 @@
-import numpy as np
+# import numpy removido - não mais necessário
 
 from .movimento_util import gerar_movimentos_possiveis
 from .movimentos import andar
@@ -6,18 +6,7 @@ from .paredes import colocar_parede
 from .square import Square
 from .utilidade import calcular_utilidade, shortest_path_length
 
-# Constantes para Cálculo de Recompensa DQN Intermediária
-# Progresso Pessoal
-FATOR_PROGRESSO_PESSOAL = 30.0  # Multiplica a redução no caminho próprio
-FATOR_REGRESSO_PESSOAL = 25.0   # Multiplica o aumento no caminho próprio (penalidade)
-RECOMPENSA_DESBLOQUEIO_PROPRIO = 10.0 # Recompensa por encontrar um caminho quando antes estava bloqueado
-PENALIDADE_AUTOBLOQUEIO = -35.0      # Penalidade por se bloquear
-
-# Impacto no Oponente (principalmente por paredes)
-FATOR_PREJUIZO_OPONENTE = 15.0  # Multiplica o aumento no caminho do oponente
-FATOR_AJUDA_OPONENTE = 15.0     # Multiplica a redução no caminho do oponente (penalidade)
-RECOMPENSA_BLOQUEIO_OPONENTE = 25.0 # Recompensa por bloquear o oponente
-PENALIDADE_DESBLOQUEIO_OPONENTE = -35.0 # Penalidade se sua parede desbloqueou o oponente
+# Constantes e configurações DQN removidas
 
 # Custos/Incentivos Base de Ação
 CUSTO_COLOCAR_PAREDE = -10.0  # Custo fixo por colocar uma parede
@@ -220,127 +209,6 @@ class JogoQuoridor:
             )
         return calcular_utilidade(estado, jogador, **kwargs)
 
-    def get_dqn_state_vector(self, turno):
-        """
-        Gera um vetor numérico de tamanho fixo representando o estado atual do jogo para uma DQN.
-        Características do vetor de estado (135 no total):
-        - Posição J1 (linha, col): 2
-        - Posição J2 (linha, col): 2
-        - Paredes restantes J1: 1
-        - Paredes restantes J2: 1
-        - Paredes horizontais (grade 8x8): 64 (1 se existe parede, 0 caso contrário)
-        - Paredes verticais (grade 8x8): 64 (1 se existe parede, 0 caso contrário)
-        - Jogador atual (0 para J1, 1 para J2): 1
-        """
-        pos_j1 = self.jogadores["J1"]
-        pos_j2 = self.jogadores["J2"]
-        paredes_restantes_j1 = self.paredes_restantes["J1"]
-        paredes_restantes_j2 = self.paredes_restantes["J2"]
-
-        paredes_h = np.zeros((8, 8), dtype=np.float32)
-        for linha in range(8):
-            for coluna in range(8):
-                if not self.tabuleiro[linha][coluna].pode_mover_para_baixo:
-                    paredes_h[linha, coluna] = 1.0
-
-        paredes_v = np.zeros((8, 8), dtype=np.float32)
-        for linha in range(8):
-            for coluna in range(8):
-                if not self.tabuleiro[linha][coluna].pode_mover_para_direita:
-                    paredes_v[linha, coluna] = 1.0
-
-        indicador_jogador_atual = float(turno)  # 0.0 para J1, 1.0 para J2
-
-        vetor_estado = np.concatenate(
-            [
-                np.array([pos_j1[0], pos_j1[1]], dtype=np.float32),
-                np.array([pos_j2[0], pos_j2[1]], dtype=np.float32),
-                np.array([paredes_restantes_j1], dtype=np.float32),
-                np.array([paredes_restantes_j2], dtype=np.float32),
-                paredes_h.flatten(),
-                paredes_v.flatten(),
-                np.array([indicador_jogador_atual], dtype=np.float32),
-            ]
-        )
-
-        return vetor_estado
-
-    def calcular_recompensa_dqn(
-        self, movimento, jogador_dqn, meu_caminho_antes, caminho_oponente_antes
-    ):
-        """
-        Calcula a recompensa intermediária para o agente DQN com base na mudança no estado do jogo.
-        As recompensas de vitória/derrota/empate são tratadas separadamente no loop de treinamento.
-
-        Args:
-            movimento (tuple or str): O movimento realizado. Ex: ('n', 'e', 's', 'w') ou ('a1h', 'b2v', etc.)
-            jogador_dqn (str): O jogador DQN ("J1" ou "J2").
-            meu_caminho_antes (int): Comprimento do caminho do DQN antes do movimento (99+ se bloqueado).
-            caminho_oponente_antes (int): Comprimento do caminho do oponente antes do movimento (99+ se bloqueado).
-
-        Returns:
-            float: A recompensa intermediária calculada.
-        """
-        recompensa_total = 0.0
-
-        oponente_dqn = "J2" if jogador_dqn == "J1" else "J1"
-        pos_minha_depois = self.jogadores[jogador_dqn]
-        pos_oponente_depois = self.jogadores[oponente_dqn]
-
-        meu_caminho_depois = shortest_path_length(jogador_dqn, pos_minha_depois, self.tabuleiro)
-        caminho_oponente_depois = shortest_path_length(oponente_dqn, pos_oponente_depois, self.tabuleiro)
-
-        # --- 1. Recompensa/Penalidade por Progresso/Regresso Pessoal ---
-        # Considera caminhos válidos (menor que 99)
-        if meu_caminho_depois < 99:  # Se o agente ainda tem um caminho
-            if meu_caminho_antes < 99:  # E tinha um caminho antes
-                diff_meu_caminho = meu_caminho_antes - meu_caminho_depois
-                if diff_meu_caminho > 0: # Progrediu
-                    recompensa_total += diff_meu_caminho * FATOR_PROGRESSO_PESSOAL
-                else: # Regrediu ou ficou no mesmo lugar (diff_meu_caminho <= 0)
-                    recompensa_total += diff_meu_caminho * FATOR_REGRESSO_PESSOAL # diff é negativo ou zero, FATOR_REGRESSO_PESSOAL é positivo
-            else:  # Não tinha caminho antes (>=99), mas agora tem (<99) (desbloqueou-se)
-                recompensa_total += RECOMPENSA_DESBLOQUEIO_PROPRIO
-        else: # Agente não tem mais caminho (meu_caminho_depois >= 99)
-            if meu_caminho_antes < 99:  # Tinha um caminho antes, mas se bloqueou
-                recompensa_total += PENALIDADE_AUTOBLOQUEIO
-
-        # --- 2. Recompensa/Penalidade por Impacto no Oponente e Custo da Ação ---
-        # Verifica se o movimento foi uma parede: tupla ('a','1','h')
-        foi_parede = isinstance(movimento, tuple) and len(movimento) == 3 and \
-                     isinstance(movimento[0], str) and isinstance(movimento[1], str) and \
-                     isinstance(movimento[2], str)
-
-        if foi_parede:
-            recompensa_total += CUSTO_COLOCAR_PAREDE
-
-            # --- Penalidade Adicional por Usar Parede Cedo ---
-            # self.paredes_restantes[jogador_dqn] aqui é o valor APÓS a parede ser colocada.
-            if self.paredes_restantes[jogador_dqn] >= LIMITE_PAREDES_PARA_PENALIDADE_CEDO:
-                recompensa_total += PENALIDADE_PAREDE_CEDO
-                # Opcional: print para debug
-                # print(f"    [{jogador_dqn} Penalidade Parede Cedo Aplicada] Paredes restantes: {self.paredes_restantes[jogador_dqn]} >= {LIMITE_PAREDES_PARA_PENALIDADE_CEDO}")
-            # --- Fim da Penalidade Adicional ---
-
-            if caminho_oponente_depois < 99: # Se oponente ainda tem caminho
-                if caminho_oponente_antes < 99: # E oponente tinha caminho antes
-                    diff_caminho_oponente = caminho_oponente_depois - caminho_oponente_antes # Positivo se caminho do oponente aumentou
-                    if diff_caminho_oponente > 0: # Prejudicou o oponente (caminho dele aumentou)
-                        recompensa_total += diff_caminho_oponente * FATOR_PREJUIZO_OPONENTE
-                    else: # Ajudou o oponente ou não afetou (caminho dele diminuiu ou manteve)
-                        recompensa_total += diff_caminho_oponente * FATOR_AJUDA_OPONENTE # diff é negativo ou zero
-                else: # Oponente não tinha caminho (>=99), mas sua parede o desbloqueou (<99) (muito ruim)
-                    recompensa_total += PENALIDADE_DESBLOQUEIO_OPONENTE
-            else: # Oponente não tem mais caminho (caminho_oponente_depois >= 99)
-                if caminho_oponente_antes < 99: # Oponente tinha caminho, mas foi bloqueado pela parede
-                    recompensa_total += RECOMPENSA_BLOQUEIO_OPONENTE
-        else:  # Foi movimento de peão
-            recompensa_total += RECOMPENSA_MOVER_PEAO
-
-        # Limitar a recompensa intermediária para não ofuscar as recompensas terminais
-        recompensa_total = np.clip(recompensa_total, LIMITE_RECOMPENSA_INTERMEDIARIA_MIN, LIMITE_RECOMPENSA_INTERMEDIARIA_MAX)
-
-        return recompensa_total
 
     def gerar_movimentos_possiveis(self, turno):
         return gerar_movimentos_possiveis(self, turno)
@@ -369,29 +237,30 @@ class JogoQuoridor:
         sucesso_movimento = False
 
         if tipo_movimento == "mover":
-            # Converter o par (linha, coluna) para direção (n, s, e, w) e passar para self.andar()
-            nova_linha, nova_coluna = valor_movimento
-            jogador = "J1" if turno_idx == 0 else "J2"
-            linha_atual, coluna_atual = self.jogadores[jogador]
+            direcao = None
+            # Se o valor for uma string (como 'w', 's'), é um movimento da GUI
+            if isinstance(valor_movimento, str):
+                direcao = valor_movimento
+            # Se for uma tupla, é um movimento do agente (coordenadas)
+            elif isinstance(valor_movimento, tuple):
+                nova_linha, nova_coluna = valor_movimento
+                jogador = "J1" if turno_idx == 0 else "J2"
+                linha_atual, coluna_atual = self.jogadores[jogador]
+
+                # Determinar direção baseado na diferença de posições
+                if nova_linha < linha_atual:
+                    direcao = "w"
+                elif nova_linha > linha_atual:
+                    direcao = "s"
+                elif nova_coluna < coluna_atual:
+                    direcao = "a"
+                elif nova_coluna > coluna_atual:
+                    direcao = "d"
             
-            # Determinar direção baseado na diferença de posições
-            if nova_linha < linha_atual:
-                direcao = "n"  # Norte (para cima no tabuleiro)
-            elif nova_linha > linha_atual:
-                direcao = "s"  # Sul (para baixo no tabuleiro)
-            elif nova_coluna < coluna_atual:
-                direcao = "w"  # Oeste (para esquerda no tabuleiro)
-            elif nova_coluna > coluna_atual:
-                direcao = "e"  # Leste (para direita no tabuleiro)
+            if direcao:
+                sucesso_movimento = self.andar(direcao, turno_idx)
             else:
-                return False  # Tentando mover para a mesma posição
-                
-            # Validação adicional para coordenadas
-            if nova_linha < 0 or nova_linha >= self.linhas or nova_coluna < 0 or nova_coluna >= self.colunas:
-                print(f"[WARN] Movimento para posição inválida: {valor_movimento}")
-                return False
-            
-            sucesso_movimento = self.andar(direcao, turno_idx)
+                sucesso_movimento = False
         elif tipo_movimento == "parede":
             linha, coluna, orientacao = valor_movimento
             # Converter linha e coluna para notação de alfabeto e número (ex: 'e5h')
