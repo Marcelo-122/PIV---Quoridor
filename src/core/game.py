@@ -1,7 +1,6 @@
 from .paredes import colocar_parede
 from .movimentos import andar
 from .utilidade import calcular_utilidade, shortest_path_length
-from ..utils.print import imprimir_tabuleiro
 
 import numpy as np
 from .square import Square
@@ -76,9 +75,6 @@ class JogoQuoridor:
         else:
             # A colocação básica já falhou (sobreposição, cruzamento, etc.)
             return False
-
-    def imprimir_tabuleiro(self):
-        imprimir_tabuleiro(self)
 
     def andar(self, direcao, turno):
         return andar(self, direcao, turno)

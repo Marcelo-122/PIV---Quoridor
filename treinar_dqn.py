@@ -2,7 +2,6 @@ import datetime
 import os
 import sys
 
-# Importa o módulo minimax
 from src.ai import minimax as minimax_logic
 from src.ai.dqn_agent import AgenteDQN
 from src.ai.dqn_config_acoes import TAMANHO_ESTADO, TOTAL_ACOES
@@ -15,7 +14,7 @@ if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
 # --- Configurações e Hiperparâmetros ---
-NUM_EPISODIOS = 10000  # Reduzido para teste rápido coloque 10, para a apresentaçao vai ser 1000
+NUM_EPISODIOS = 1000  # Reduzido para teste rápido coloque 10, para a apresentaçao vai ser 1000
 MODO_TREINAMENTO = "self_play"  # Opções: 'self_play' ou 'vs_minimax' para o treinamento
 
 # Parâmetros para AgenteDQN
@@ -28,11 +27,11 @@ EPSILON_DECAY = 0.9995  # Ajustar conforme necessário para decair mais lentamen
 CAPACIDADE_BUFFER = 100000
 BATCH_SIZE = 64
 FREQUENCIA_ATUALIZACAO_ALVO = (
-    100  # A cada quantos passos de aprendizado atualizar a rede alvo
+    100  # A cada quantos passos de aprendizado atualiza a rede alvo
 )
 
 # Parâmetros para AgenteMinimax (se MODO_TREINAMENTO == 'vs_minimax')
-PROFUNDIDADE_MINIMAX = 1  # Ajuste conforme a dificuldade desejada para o oponente
+PROFUNDIDADE_MINIMAX = 1  # Ajuste conforme a dificuldade desejada para o oponente (Por algum motivo 1 é muito forte contra uma DQN iniciante)
 
 # Salvamento de Modelo
 PASTA_MODELOS = "saved_models_dqn"
@@ -326,8 +325,6 @@ def treinar():
 
     print("[DEBUG] Fim da função treinar()", flush=True)
     print(f"Treinamento {MODO_TREINAMENTO} concluído.")
-    # Aqui você pode adicionar código para plotar métricas, etc.
-
 
 if __name__ == "__main__":
     print("[DEBUG] Iniciando execução do script treinar_dqn.py", flush=True)

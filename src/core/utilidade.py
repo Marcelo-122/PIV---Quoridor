@@ -25,28 +25,9 @@ def shortest_path_length(jogador, pos, tabuleiro):
             fila.append((linha, coluna-1, dist+1))
         if coluna < 8 and tabuleiro[linha][coluna].pode_mover_para_direita and not visitado[linha][coluna+1]:
             fila.append((linha, coluna+1, dist+1))
-    return 99  # No path (should not happen)
+    return 99  # Sem caminho
 
 def calcular_utilidade(estado, jogador, tabuleiro=None):
-    """
-    Calcula a utilidade de um estado do jogo para o Minimax de forma estratégica.
-
-    A utilidade é calculada com base em dois fatores principais:
-    1.  **Diferença de Caminho (Peso 2.5):** O fator mais importante. Incentiva a IA a
-        priorizar o bloqueio do oponente, pois aumentar o caminho dele em 2 casas
-        (pontuação +5.0) é muito mais valioso do que avançar o próprio peão em 1 casa
-        (pontuação +2.5).
-    2.  **Diferença de Paredes (Peso 0.1):** Um fator secundário usado para desempate,
-        incentivando a IA a ser econômica com suas paredes.
-
-    Args:
-        estado (tuple): (pos_j1, pos_j2, paredes_j1, paredes_j2).
-        jogador (str): O jogador para o qual a utilidade está sendo calculada ('J1' ou 'J2').
-        tabuleiro: O estado atual do tabuleiro de jogo.
-
-    Returns:
-        float: O valor de utilidade calculado para o estado do jogo.
-    """
     posicao_j1, posicao_j2, paredes_j1, paredes_j2 = estado
     if tabuleiro is None:
         raise ValueError("O tabuleiro deve ser fornecido para o cálculo do caminho mais curto.")
@@ -69,4 +50,3 @@ def calcular_utilidade(estado, jogador, tabuleiro=None):
     utilidade = (diff_caminho * peso_caminho) + (diff_paredes * peso_parede)
 
     return utilidade
-# Função de utilidade aprimorada para Quoridor: shortest path, wall count, wall penalty, and pawn advancement bonus.
