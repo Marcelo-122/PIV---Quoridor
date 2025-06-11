@@ -5,8 +5,6 @@ from enum import Enum, auto
 import pygame
 # Importações do projeto e da GUI devem vir após a manipulação do sys.path,
 # mas todas as importações devem ser agrupadas o máximo possível.
-from src.ai.dqn_agent import AgenteDQN  # noqa: E402
-from src.ai.dqn_config_acoes import TAMANHO_ESTADO, TOTAL_ACOES  # noqa: E402
 from src.ai.minimax import escolher_movimento_ai  # noqa: E402
 from src.core.constantes import (
     LARGURA,  # Apenas LARGURA é usada diretamente aqui para botões  # noqa: E402

@@ -18,7 +18,7 @@ if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
 # --- Configurações e Hiperparâmetros ---
-NUM_EPISODIOS = 100  # Aumentado para 1000 episódios
+NUM_EPISODIOS = 1000  # Aumentado para 1000 episódios
 TAMANHO_TABULEIRO = 5  # Tabuleiro 5x5
 PAREDES_POR_JOGADOR = 3  # 3 paredes por jogador
 MAX_MOVIMENTOS_POR_EPISODIO = 200  # Aumentado para 200 para permitir jogos mais longos
@@ -42,8 +42,8 @@ CAMINHO_MODELO_CARREGAR = f"{PASTA_MODELOS}/quoridor_q_tabular_episodio_XXXX.pkl
 RECOMPENSA_VITORIA = 1000.0
 RECOMPENSA_DERROTA = -100.0
 PENALIDADE_MOVIMENTO = -0.1  # Pequena penalidade para incentivar movimentos eficientes
-BONUS_APROXIMACAO = 5.0  # Aumentado para incentivar mais a aproximação do objetivo
-PENALIDADE_MOVIMENTO_INVALIDO = -10.0  # Penalidade específica para movimentos inválidos
+BONUS_APROXIMACAO = 10.0  # Aumentado para incentivar mais a aproximação do objetivo
+PENALIDADE_MOVIMENTO_INVALIDO = -100.0  # Penalidade específica para movimentos inválidos
 
 
 def calcular_recompensa(jogo, turno_idx, estado_anterior, estado_atual):
