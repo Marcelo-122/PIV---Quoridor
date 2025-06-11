@@ -85,20 +85,18 @@ def gerar_movimentos_possiveis(jogo, turno, ordenar=True, transposition_table=No
         return []
         
     # Debug: posição atual
-    print(f"[DEBUG] Gerando movimentos para {jogador} na posição {jogo.jogadores[jogador]}")
+    #print(f"[DEBUG] Gerando movimentos para {jogador} na posição {jogo.jogadores[jogador]}")
     
     # Movimentos de peão
     for direcao in ["w", "s", "a", "d"]:
         jogo_copia = copy.deepcopy(jogo)
         if jogo_copia.andar(direcao, turno):
             movimentos.append(('mover', direcao))
-            print(f"[DEBUG] Movimento válido: ('mover', '{direcao}')")
+            #print(f"[DEBUG] Movimento válido: ('mover', '{direcao}')")
     
     # Tentativas de colocar parede
     num_linhas = len(jogo.tabuleiro)
     num_colunas = len(jogo.tabuleiro[0]) if num_linhas > 0 else 0
-    
-    print(f"[DEBUG] Tabuleiro: {num_linhas}x{num_colunas}")
     
     for linha_notacao_num in range(1, num_linhas):
         for coluna_idx in range(num_colunas - 1):
@@ -110,10 +108,10 @@ def gerar_movimentos_possiveis(jogo, turno, ordenar=True, transposition_table=No
                     if existe_caminho("J1", jogo_copia.jogadores["J1"][0], jogo_copia.jogadores["J1"][1], jogo_copia.tabuleiro) and \
                        existe_caminho("J2", jogo_copia.jogadores["J2"][0], jogo_copia.jogadores["J2"][1], jogo_copia.tabuleiro):
                         movimentos.append(("parede", notacao))
-                        print(f"[DEBUG] Parede válida: ('parede', '{notacao}')")
+                        # print(f"[DEBUG] Parede válida: ('parede', '{notacao}')")
     
     # Debug: total de movimentos encontrados
-    print(f"[DEBUG] Total de movimentos gerados para {jogador}: {len(movimentos)}")
+    #print(f"[DEBUG] Total de movimentos gerados para {jogador}: {len(movimentos)}")
     
     if ordenar and movimentos:
         movimentos.sort(key=lambda m: avaliar_movimento_rapido(jogo, m, turno, jogador), reverse=True)

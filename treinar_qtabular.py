@@ -3,9 +3,10 @@ import os
 import random
 import sys
 
+import numpy as np
+
 from src.ai.q_learning_agent import AgenteQLearningTabular
 from src.core.game import JogoQuoridor
-import numpy as np
 
 sys.path.append("src/core")
 from debug_utils import visualizar_tabuleiro
@@ -16,7 +17,7 @@ if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
 # --- Configurações e Hiperparâmetros ---
-NUM_EPISODIOS = 100  # Aumentado para 1000 episódios
+NUM_EPISODIOS = 10000  # Aumentado para 1000 episódios
 TAMANHO_TABULEIRO = 5  # Tabuleiro 5x5
 PAREDES_POR_JOGADOR = 3  # 3 paredes por jogador
 MAX_MOVIMENTOS_POR_EPISODIO = 200  # Aumentado para 200 para permitir jogos mais longos
@@ -71,7 +72,7 @@ def calcular_recompensa(jogo, turno_idx, estado_anterior, estado_atual):
     # A linha objetivo depende de qual jogador está jogando
     linha_objetivo = jogo.linhas - 1 if turno_idx == 0 else 0
 
-    # Distância até o objetivo 
+    # Distância até o objetivo
     distancia_anterior = abs(pos_anterior[0] - linha_objetivo)
     distancia_atual = abs(pos_atual[0] - linha_objetivo)
 
@@ -137,6 +138,9 @@ def treinar():
 
     # Loop principal de treinamento
     for episodio in range(1, NUM_EPISODIOS + 1):
+        print(
+            f"[DEBUG] Iniciando Episódio: {episodio}/{NUM_EPISODIOS}"
+        )  # Added debug print
         jogo.resetar_jogo()
         total_movimentos = 0
         estado_atual_j1 = jogo.get_estado_tupla(0)  # Estado inicial J1
