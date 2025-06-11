@@ -9,9 +9,9 @@ def minimax_alfabeta(
     jogador,
     transposition_table,
     gerar_movimentos_possiveis,
-    criar_move_info,
+    criar_mover_info,
     aplicar_movimento,
-    atualizar_move_info,
+    atualizar_mover_info,
     hash_estado,
     profundidade_maxima=4,
     alfa=float("-inf"),
@@ -27,9 +27,9 @@ def minimax_alfabeta(
         jogador: Jogador para o qual calcular a utilidade ('J1' ou 'J2')
         transposition_table: Tabela de transposição para armazenar estados já calculados
         gerar_movimentos_possiveis: Função para gerar movimentos possíveis
-        criar_move_info: Função para criar informações sobre o movimento
+        criar_mover_info: Função para criar informações sobre o movimento
         aplicar_movimento: Função para aplicar um movimento ao jogo
-        atualizar_move_info: Função para atualizar informações do movimento
+        atualizar_mover_info: Função para atualizar informações do movimento
         hash_estado: Função para gerar um hash do estado do jogo
         profundidade_maxima: Profundidade máxima de busca
         alfa: Valor alfa para poda alfa-beta
@@ -59,12 +59,12 @@ def minimax_alfabeta(
         valor = float("-inf")
         for movimento in gerar_movimentos_possiveis(jogo, 0 if jogador == "J1" else 1):
             jogo_copia = copy.deepcopy(jogo)
-            move_info = criar_move_info(
+            mover_info = criar_mover_info(
                 jogo_copia, movimento, 0 if jogador == "J1" else 1
             )
             aplicar_movimento(jogo_copia, movimento, 0 if jogador == "J1" else 1)
-            move_info = atualizar_move_info(
-                jogo_copia, move_info, 0 if jogador == "J1" else 1
+            mover_info = atualizar_mover_info(
+                jogo_copia, mover_info, 0 if jogador == "J1" else 1
             )
 
             # Use the direct result from the recursive call
@@ -75,9 +75,9 @@ def minimax_alfabeta(
                 jogador,
                 transposition_table,
                 gerar_movimentos_possiveis,
-                criar_move_info,
+                criar_mover_info,
                 aplicar_movimento,
-                atualizar_move_info,
+                atualizar_mover_info,
                 hash_estado,
                 profundidade_maxima,
                 alfa,
@@ -100,12 +100,12 @@ def minimax_alfabeta(
         oponente = "J2" if jogador == "J1" else "J1"
         for movimento in gerar_movimentos_possiveis(jogo, 0 if oponente == "J1" else 1):
             jogo_copia = copy.deepcopy(jogo)
-            move_info = criar_move_info(
+            mover_info = criar_mover_info(
                 jogo_copia, movimento, 0 if oponente == "J1" else 1
             )
             aplicar_movimento(jogo_copia, movimento, 0 if oponente == "J1" else 1)
-            move_info = atualizar_move_info(
-                jogo_copia, move_info, 0 if oponente == "J1" else 1
+            mover_info = atualizar_mover_info(
+                jogo_copia, mover_info, 0 if oponente == "J1" else 1
             )
 
             # Use the direct result from the recursive call
@@ -116,9 +116,9 @@ def minimax_alfabeta(
                 jogador,
                 transposition_table,
                 gerar_movimentos_possiveis,
-                criar_move_info,
+                criar_mover_info,
                 aplicar_movimento,
-                atualizar_move_info,
+                atualizar_mover_info,
                 hash_estado,
                 profundidade_maxima,
                 alfa,
@@ -145,9 +145,9 @@ def melhor_jogada_agente_poda_com_valor(
     profundidade_maxima,
     transposition_table,
     gerar_movimentos_possiveis,
-    criar_move_info,
+    criar_mover_info,
     aplicar_movimento,
-    atualizar_move_info,
+    atualizar_mover_info,
     hash_estado,
 ):
     """
@@ -159,9 +159,9 @@ def melhor_jogada_agente_poda_com_valor(
         profundidade_maxima: Profundidade máxima de busca
         transposition_table: Tabela de transposição para armazenar estados já calculados
         gerar_movimentos_possiveis: Função para gerar movimentos possíveis
-        criar_move_info: Função para criar informações sobre o movimento
+        criar_mover_info: Função para criar informações sobre o movimento
         aplicar_movimento: Função para aplicar um movimento ao jogo
-        atualizar_move_info: Função para atualizar informações do movimento
+        atualizar_mover_info: Função para atualizar informações do movimento
         hash_estado: Função para gerar um hash do estado do jogo
 
     Returns:
@@ -177,9 +177,9 @@ def melhor_jogada_agente_poda_com_valor(
         jogo, turno, transposition_table=transposition_table
     ):
         jogo_copia = copy.deepcopy(jogo)
-        move_info = criar_move_info(jogo_copia, movimento, turno)
+        mover_info = criar_mover_info(jogo_copia, movimento, turno)
         aplicar_movimento(jogo_copia, movimento, turno)
-        move_info = atualizar_move_info(jogo_copia, move_info, turno)
+        mover_info = atualizar_mover_info(jogo_copia, mover_info, turno)
 
         # Use the direct result from the minimax_alfabeta call
         valor_do_movimento = minimax_alfabeta(
@@ -189,9 +189,9 @@ def melhor_jogada_agente_poda_com_valor(
             jogador,
             transposition_table,
             gerar_movimentos_possiveis,
-            criar_move_info,
+            criar_mover_info,
             aplicar_movimento,
-            atualizar_move_info,
+            atualizar_mover_info,
             hash_estado,
             profundidade_maxima,
             alfa,

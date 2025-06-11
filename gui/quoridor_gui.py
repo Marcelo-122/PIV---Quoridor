@@ -1,11 +1,11 @@
 import os
 import sys
+import pickle
 from enum import Enum, auto
 
 import pygame
-# Importações do projeto e da GUI devem vir após a manipulação do sys.path,
-# mas todas as importações devem ser agrupadas o máximo possível.
-from src.ai.minimax import escolher_movimento_ai  # noqa: E402
+from src.ai.q_learning_agent import AgenteQLearningTabular
+from src.ai.minimax import escolher_movimento_ai
 from src.core.constantes import (
     LARGURA,  # Apenas LARGURA é usada diretamente aqui para botões  # noqa: E402
 )
@@ -30,7 +30,8 @@ class GameState(Enum):
 class GameMode(Enum):
     HUMAN_VS_HUMAN = "Humano vs Humano"
     HUMAN_VS_MINIMAX = "Humano vs Minimax"
-    # Modos com DQN removidos
+    HUMAN_VS_Q_LEARNING = "Humano vs Q-Learning"
+    Q_LEARNING_VS_MINIMAX = "Q-Learning vs Minimax"
 
 
 class QuoridorGUI:
@@ -52,6 +53,10 @@ class QuoridorGUI:
         self.colocando_parede = False
         self.parede_orientacao = 'h'  # 'h' para horizontal, 'v' para vertical
         self.parede_temp_pos = None  # Posição (col, row) para preview da parede
+        self.ai_is_thinking = False  # Trava para impedir chamadas repetidas da IA
+
+        # Inicializa os agentes de IA
+        self.q_learning_agent = self._carregar_q_learning_agent()
 
     def _create_title_buttons(self):
         """Cria os retângulos e textos para os botões da tela de título."""
@@ -70,19 +75,45 @@ class QuoridorGUI:
             }
         return buttons
 
+    def _carregar_q_learning_agent(self):
+        """Carrega o agente Q-Learning treinado a partir de um arquivo."""
+        caminho_modelo = os.path.join("saved_models_q_tabular", "quoridor_q_tabular_final.pkl")
+        try:
+            with open(caminho_modelo, 'rb') as f:
+                q_table = pickle.load(f)
+                agent = AgenteQLearningTabular(
+                    alpha=0, epsilon=0, gamma=0
+                )  # Parâmetros não são usados para inferência
+                agent.q_table = q_table
+                print(f"Agente Q-Learning carregado de {caminho_modelo}")
+                return agent
+        except FileNotFoundError:
+            print(f"ERRO: Arquivo do agente Q-Learning não encontrado em {caminho_modelo}")
+            return None
+        except Exception as e:
+            print(f"ERRO: Falha ao carregar o agente Q-Learning: {e}")
+            return None
+
     def _start_game(self, mode: GameMode):
         self.game_mode = mode
         # Usar tabuleiro 5x5 com 3 paredes por jogador, consistente com o script de treinamento
         self.jogo = JogoQuoridor(linhas=5, colunas=5, total_paredes_jogador=3)
-        self.human_players = []
-        # Removido agente DQN
         self.turno = 0
         self.mensagem = f"Modo: {mode.value}"
+        self.ai_is_thinking = False
 
         if mode == GameMode.HUMAN_VS_HUMAN:
             self.human_players = [0, 1]
         elif mode == GameMode.HUMAN_VS_MINIMAX:
             self.human_players = [0]  # Humano é J1 (índice 0)
+        elif mode == GameMode.HUMAN_VS_Q_LEARNING:
+            self.human_players = [0]  # Humano é J1 (índice 0)
+        elif mode == GameMode.Q_LEARNING_VS_MINIMAX:
+            self.human_players = []  # Nenhum jogador humano
+        else:
+            # Garante um estado padrão seguro se o modo for desconhecido
+            self.human_players = [0, 1]
+            self.mensagem = f"Modo '{mode.value}' desconhecido. Padrão para H vs H."
 
         self.game_state = GameState.PLAYING
 
@@ -119,7 +150,8 @@ class QuoridorGUI:
                 col, row = self.parede_temp_pos
                 letra_coluna = chr(ord('a') + col)
                 numero_linha = str(row + 1)
-                movimento_tupla = ('wall', (letra_coluna, numero_linha, self.parede_orientacao))
+                notacao_parede = f"{letra_coluna}{numero_linha}{self.parede_orientacao}"
+                movimento_tupla = ('parede', notacao_parede)
 
                 if self.jogo.aplicar_movimento(movimento_tupla, self.turno):
                     self.mensagem = f"Jogador {self.turno + 1} colocou uma parede."
@@ -176,7 +208,10 @@ class QuoridorGUI:
             self.mensagem = f"Fim de Jogo! Vencedor: Jogador {vencedor_num}"
             return  # Fim do update, o jogo acabou.
 
-        if self.turno not in self.human_players:
+        # Log de depuração para verificar o estado do turno e dos jogadores humanos
+        print(f"[DEBUG] Verificando turno: self.turno={self.turno}, self.human_players={self.human_players}")
+
+        if self.turno not in self.human_players and not self.ai_is_thinking:
             self._ai_turn()
             pygame.time.wait(200)  # Pausa para visualizar jogada da IA
 
@@ -203,35 +238,79 @@ class QuoridorGUI:
         pygame.display.flip()
 
     def _ai_turn(self):
-        """Executa o movimento de uma das IAs."""
+        """Executa o movimento de uma das IAs, dependendo do modo de jogo."""
+        self.ai_is_thinking = True
         movimento_tupla = None
         jogador_idx = self.turno
+        agent_name = ""
 
-        is_minimax_turn = self.game_mode == GameMode.HUMAN_VS_MINIMAX and jogador_idx == 1
+        try:
+            # Modo: Humano vs. Minimax
+            if self.game_mode == GameMode.HUMAN_VS_MINIMAX and jogador_idx == 1:
+                agent_name = "Minimax"
+                print(f"Turno do {agent_name} (Jogador {jogador_idx + 1})")
+                movimento_tupla = escolher_movimento_ai(self.jogo, jogador_idx, profundidade=2)
 
-        if is_minimax_turn:
-            print(f"Turno do Minimax (Jogador {jogador_idx + 1})")
-            movimento_tupla = escolher_movimento_ai(
-                self.jogo, jogador_idx, profundidade=2
-            )
-        # DQN removido
+            # Modo: Humano vs. Q-Learning
+            elif self.game_mode == GameMode.HUMAN_VS_Q_LEARNING and jogador_idx == 1:
+                agent_name = "Q-Learning"
+                if self.q_learning_agent:
+                    print(f"Turno do {agent_name} (Jogador {jogador_idx + 1})")
+                    movimento_tupla = self.q_learning_agent.escolher_movimento(self.jogo, jogador_idx)
+                else:
+                    print("ERRO: Agente Q-Learning não foi carregado.")
 
-        if not movimento_tupla:
-            self.mensagem = (
-                f"AVISO: IA (Jogador {jogador_idx + 1}) não encontrou movimento válido."
-            )
-            print(f"AVISO: IA (Jogador {jogador_idx + 1}) não retornou movimento.")
-            return
+            # Modo: Q-Learning vs. Minimax
+            elif self.game_mode == GameMode.Q_LEARNING_VS_MINIMAX:
+                if jogador_idx == 0:  # Vez do Q-Learning (J1)
+                    agent_name = "Q-Learning"
+                    if self.q_learning_agent:
+                        print(f"Turno do {agent_name} (Jogador {jogador_idx + 1})")
+                        movimento_tupla = self.q_learning_agent.escolher_movimento(self.jogo, jogador_idx)
+                    else:
+                        print("ERRO: Agente Q-Learning não foi carregado.")
+                else:  # Vez do Minimax (J2)
+                    agent_name = "Minimax"
+                    print(f"Turno do {agent_name} (Jogador {jogador_idx + 1})")
+                    movimento_tupla = escolher_movimento_ai(self.jogo, jogador_idx, profundidade=2)
 
-        print(f"IA (Jogador {jogador_idx + 1}) tentando movimento: {movimento_tupla}")
-        if self.jogo.aplicar_movimento(movimento_tupla, jogador_idx):
-            self.mensagem = f"IA (Jogador {jogador_idx + 1}) jogou: {movimento_tupla}"
-            self.turno = 1 - self.turno
-        else:
-            self.mensagem = f"ERRO: IA (Jogador {jogador_idx + 1}) tentou mov. inválido: {movimento_tupla}"
-            print(
-                f"ERRO CRÍTICO: IA (J{jogador_idx + 1}) gerou mov. inválido: {movimento_tupla}"
-            )
+            # Aplica o movimento se um foi escolhido pela IA
+            if movimento_tupla:
+                sucesso = self.jogo.aplicar_movimento(movimento_tupla, jogador_idx)
+                if sucesso:
+                    tipo_mov, valor_mov = movimento_tupla
+                    acao_desc = f"moveu para {valor_mov}" if tipo_mov == 'mover' else f"colocou parede em {valor_mov}"
+                    self.mensagem = f"IA ({agent_name}) jogou: {acao_desc}"
+                    self.turno = 1 - self.turno
+                else:
+                    self.mensagem = f"ERRO CRÍTICO: IA ({agent_name}) gerou mov. inválido: {movimento_tupla}"
+                    print(self.mensagem)
+            elif agent_name:  # Se um agente deveria jogar mas não retornou movimento
+                self.mensagem = f"AVISO: {agent_name} não retornou um movimento. Passando o turno."
+                print(self.mensagem)
+                self.turno = 1 - self.turno  # Passa o turno para evitar loop infinito
+
+        finally:
+            self.ai_is_thinking = False  # Libera a trava da IA, aconteça o que acontecer
+
+    def _carregar_q_learning_agent(self):
+        """Carrega o agente Q-Learning treinado a partir de um arquivo."""
+        caminho_modelo = os.path.join("saved_models_q_tabular", "quoridor_q_tabular_final.pkl")
+        try:
+            with open(caminho_modelo, 'rb') as f:
+                q_table = pickle.load(f)
+                agent = AgenteQLearningTabular(
+                    alpha=0, epsilon=0, gamma=0
+                )  # Parâmetros não são usados para inferência
+                agent.q_table = q_table
+                print(f"Agente Q-Learning carregado de {caminho_modelo}")
+                return agent
+        except FileNotFoundError:
+            print(f"ERRO: Arquivo do agente Q-Learning não encontrado em {caminho_modelo}")
+            return None
+        except Exception as e:
+            print(f"ERRO: Falha ao carregar o agente Q-Learning: {e}")
+            return None
 
     def run(self):
         """Loop principal do jogo."""

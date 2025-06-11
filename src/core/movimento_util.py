@@ -4,8 +4,8 @@ from .caminho import existe_caminho
 from .utilidade import shortest_path_length
 
 # Representa um movimento: (tipo, valor)
-# tipo: 'move' ou 'wall'
-# valor: para 'move', direcao ('w', 'a', 's', 'd'); para 'wall', notacao (ex: 'e7h')
+# tipo: 'mover' ou 'parede'
+# valor: para 'mover', direcao ('w', 'a', 's', 'd'); para 'parede', notacao (ex: 'e7h')
 
 DIRECOES = ["w", "a", "s", "d"]
 LINHAS, COLUNAS = 9, 9
@@ -14,14 +14,14 @@ LINHAS, COLUNAS = 9, 9
 # Baseado em análise de jogos de Quoridor
 BEST_FIRST_MOVES = {
     "J1": [
-        ("move", "s"),
-        ("wall", "e5h"),
-        ("wall", "d5h"),
+        ("mover", "s"),
+        ("parede", "e5h"),
+        ("parede", "d5h"),
     ],  # Movimento para frente ou paredes centrais
     "J2": [
-        ("move", "w"),
-        ("wall", "e5h"),
-        ("wall", "d5h"),
+        ("mover", "w"),
+        ("parede", "e5h"),
+        ("parede", "d5h"),
     ],  # Movimento para frente ou paredes centrais
 }
 
@@ -51,7 +51,7 @@ def avaliar_movimento_rapido(jogo, movimento, turno, jogador):
         return -distancia
 
     # Paredes são avaliadas pelo impacto no caminho do oponente
-    elif tipo == "wall":
+    elif tipo == "parede":
         jogo_copia = copy.deepcopy(jogo)
         estado_antes = jogo_copia.serializar_estado()
         oponente = "J2" if jogador == "J1" else "J1"
@@ -91,8 +91,8 @@ def gerar_movimentos_possiveis(jogo, turno, ordenar=True, transposition_table=No
     for direcao in ["w", "s", "a", "d"]:
         jogo_copia = copy.deepcopy(jogo)
         if jogo_copia.andar(direcao, turno):
-            movimentos.append(("move", direcao))
-            print(f"[DEBUG] Movimento válido: ('move', '{direcao}')")
+            movimentos.append(('mover', direcao))
+            print(f"[DEBUG] Movimento válido: ('mover', '{direcao}')")
     
     # Tentativas de colocar parede
     num_linhas = len(jogo.tabuleiro)
@@ -109,8 +109,8 @@ def gerar_movimentos_possiveis(jogo, turno, ordenar=True, transposition_table=No
                 if jogo_copia.colocar_parede(notacao, turno):
                     if existe_caminho("J1", jogo_copia.jogadores["J1"][0], jogo_copia.jogadores["J1"][1], jogo_copia.tabuleiro) and \
                        existe_caminho("J2", jogo_copia.jogadores["J2"][0], jogo_copia.jogadores["J2"][1], jogo_copia.tabuleiro):
-                        movimentos.append(("wall", notacao))
-                        print(f"[DEBUG] Parede válida: ('wall', '{notacao}')")
+                        movimentos.append(("parede", notacao))
+                        print(f"[DEBUG] Parede válida: ('parede', '{notacao}')")
     
     # Debug: total de movimentos encontrados
     print(f"[DEBUG] Total de movimentos gerados para {jogador}: {len(movimentos)}")
@@ -124,26 +124,26 @@ def gerar_movimentos_possiveis(jogo, turno, ordenar=True, transposition_table=No
 # Aplica um movimento ao jogo (muda o estado!)
 def aplicar_movimento(jogo, movimento, turno):
     tipo, valor = movimento
-    if tipo == "move":
+    if tipo == "mover":
         jogo.andar(valor, turno)
-    elif tipo == "wall":
+    elif tipo == "parede":
         jogo.colocar_parede(valor, turno)
     return jogo
 
 
 # Cria informações adicionais sobre o movimento para a função de utilidade
-def criar_move_info(jogo, movimento, turno):
+def criar_mover_info(jogo, movimento, turno):
     tipo, valor = movimento
     move_info = {"tipo": tipo}
 
-    if tipo == "wall":
+    if tipo == "parede":
         # Calcular caminho do oponente antes e depois da parede
         estado_antes = jogo.serializar_estado()
         oponente = "J2" if turno == 0 else "J1"
         pos_oponente = estado_antes[1] if oponente == "J2" else estado_antes[0]
         path_before = shortest_path_length(oponente, pos_oponente, jogo.tabuleiro)
         move_info["opponent_path_before"] = path_before
-    elif tipo == "move":
+    elif tipo == "mover":
         # Informações sobre avanço do peão
         estado_antes = jogo.serializar_estado()
         pawn_row_before = estado_antes[0][0] if turno == 0 else estado_antes[1][0]
@@ -153,14 +153,14 @@ def criar_move_info(jogo, movimento, turno):
 
 
 # Atualiza informações do movimento após aplicá-lo
-def atualizar_move_info(jogo, move_info, turno):
-    if move_info["tipo"] == "wall":
+def atualizar_mover_info(jogo, move_info, turno):
+    if move_info["tipo"] == "parede":
         estado_depois = jogo.serializar_estado()
         oponente = "J2" if turno == 0 else "J1"
         pos_oponente = estado_depois[1] if oponente == "J2" else estado_depois[0]
         path_after = shortest_path_length(oponente, pos_oponente, jogo.tabuleiro)
         move_info["opponent_path_after"] = path_after
-    elif move_info["tipo"] == "move":
+    elif move_info["tipo"] == "mover":
         estado_depois = jogo.serializar_estado()
         pawn_row_after = estado_depois[0][0] if turno == 0 else estado_depois[1][0]
         move_info["pawn_row_after"] = pawn_row_after

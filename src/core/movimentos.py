@@ -11,6 +11,15 @@ def andar(self, direcao, turno):
     d_linha, d_coluna = movimentos[direcao]
     nova_linha, nova_coluna = linha + d_linha, coluna + d_coluna
 
+    # Verifica se a nova posição está ocupada pelo outro jogador
+    outro_jogador = "J2" if jogador == "J1" else "J1"
+    if (nova_linha, nova_coluna) == self.jogadores[outro_jogador]:
+        # Tenta saltar sobre o oponente
+        nova_linha += d_linha
+        nova_coluna += d_coluna
+        # Aqui, uma lógica mais complexa para verificar paredes atrás do oponente seria necessária
+        # para um salto válido, mas por enquanto vamos simplificar.
+
     # Usar dimensões dinâmicas do tabuleiro
     if not (0 <= nova_linha < self.linhas and 0 <= nova_coluna < self.colunas):
         #print("Movimento fora dos limites!")

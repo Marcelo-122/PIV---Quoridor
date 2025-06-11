@@ -1,5 +1,5 @@
 import time
-from src.core.movimento_util import gerar_movimentos_possiveis, criar_move_info, aplicar_movimento, atualizar_move_info, hash_estado, BEST_FIRST_MOVES
+from src.core.movimento_util import gerar_movimentos_possiveis, criar_mover_info, aplicar_movimento, atualizar_mover_info, hash_estado, BEST_FIRST_MOVES
 from .minimax_core import melhor_jogada_agente_poda_com_valor
 
 # Tabela de transposição para armazenar estados já calculados
@@ -83,9 +83,9 @@ def melhor_jogada_agente_poda(jogo, turno, profundidade_maxima=4):
         profundidade_maxima, 
         transposition_table,
         gerar_movimentos_possiveis,
-        criar_move_info,
+        criar_mover_info,
         aplicar_movimento,
-        atualizar_move_info,
+        atualizar_mover_info,
         hash_estado
     )
 

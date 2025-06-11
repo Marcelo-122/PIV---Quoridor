@@ -13,18 +13,23 @@ CUSTO_COLOCAR_PAREDE = -10.0  # Custo fixo por colocar uma parede
 RECOMPENSA_MOVER_PEAO = 5.0  # Incentivo fixo por mover um peão
 
 # Penalidade por usar paredes cedo demais
-PENALIDADE_PAREDE_CEDO = -5.0  # Penalidade adicional por colocar parede tendo muitas restantes
+PENALIDADE_PAREDE_CEDO = (
+    -5.0
+)  # Penalidade adicional por colocar parede tendo muitas restantes
 # Se, APÓS colocar uma parede, o jogador ainda tiver o numero do limite, aplica-se a penalidade.
 # Ex: Se LIMITE = 8, e o jogador coloca uma parede e fica com 8 (tinha 9), ele é penalizado.
 LIMITE_PAREDES_PARA_PENALIDADE_CEDO = 8
 
-LIMITE_RECOMPENSA_INTERMEDIARIA_MIN = -30.0 # Para evitar que recompensas intermediárias sejam extremas
+LIMITE_RECOMPENSA_INTERMEDIARIA_MIN = (
+    -30.0
+)  # Para evitar que recompensas intermediárias sejam extremas
 LIMITE_RECOMPENSA_INTERMEDIARIA_MAX = 30.0
+
 
 class JogoQuoridor:
     def __init__(self, linhas=9, colunas=9, total_paredes_jogador=10):
         """Inicializa o jogo Quoridor com tamanho de tabuleiro e número de paredes configuráveis.
-        
+
         Args:
             linhas (int, opcional): Número de linhas no tabuleiro. Padrão é 9.
             colunas (int, opcional): Número de colunas no tabuleiro. Padrão é 9.
@@ -33,21 +38,29 @@ class JogoQuoridor:
         # Guarda as configurações iniciais para poder resetar
         self.linhas = linhas
         self.colunas = colunas
-        
+
         # Define as posições iniciais no centro do tabuleiro
         coluna_centro = colunas // 2
         self.estado_inicial_jogadores = {
             "J1": (0, coluna_centro),  # J1 começa na primeira linha, coluna do meio
-            "J2": (linhas - 1, coluna_centro),  # J2 começa na última linha, coluna do meio
+            "J2": (
+                linhas - 1,
+                coluna_centro,
+            ),  # J2 começa na última linha, coluna do meio
         }
-        self.estado_inicial_paredes_restantes = {"J1": total_paredes_jogador, "J2": total_paredes_jogador}
+        self.estado_inicial_paredes_restantes = {
+            "J1": total_paredes_jogador,
+            "J2": total_paredes_jogador,
+        }
         self.resetar_jogo()  # Chama resetar_jogo para configurar o estado inicial
 
     def resetar_jogo(self):
         """Reseta o jogo para o estado inicial para um novo episódio."""
         self.jogadores = self.estado_inicial_jogadores.copy()
         self.paredes_restantes = self.estado_inicial_paredes_restantes.copy()
-        self.tabuleiro = [[Square() for _ in range(self.colunas)] for _ in range(self.linhas)]
+        self.tabuleiro = [
+            [Square() for _ in range(self.colunas)] for _ in range(self.linhas)
+        ]
 
         j1_linha, j1_coluna = self.jogadores["J1"]
         j2_linha, j2_coluna = self.jogadores["J2"]
@@ -140,7 +153,7 @@ class JogoQuoridor:
             vencedor = "J1"
         elif self.verificar_vitoria_jogador("J2"):
             vencedor = "J2"
-        
+
         if vencedor:
             print(f"[VITÓRIA] Jogo terminado! Vencedor: {vencedor}")
             self.jogo_terminado = True
@@ -154,14 +167,14 @@ class JogoQuoridor:
             self.paredes_restantes["J1"],
             self.paredes_restantes["J2"],
         )
-        
+
     def get_estado_tupla(self, turno_idx):
         """
         Cria uma representação hashable do estado atual do jogo para uso na Q-tabela.
-        
+
         Args:
             turno_idx (int): 0 para J1, 1 para J2
-            
+
         Returns:
             tuple: Uma tupla contendo:
                 - pos_j1 (tuple): Posição do jogador J1 (linha, coluna)
@@ -176,29 +189,40 @@ class JogoQuoridor:
         pos_j2 = tuple(self.jogadores["J2"])
         paredes_restantes_j1 = self.paredes_restantes["J1"]
         paredes_restantes_j2 = self.paredes_restantes["J2"]
-        
+
         # Coletar posições de paredes horizontais e verticais
         paredes_horizontais = set()
         paredes_verticais = set()
-        
-        for linha in range(self.linhas - 1):  # -1 porque não pode colocar parede na última linha
-            for coluna in range(self.colunas - 1):  # -1 porque não pode colocar parede na última coluna
+
+        for linha in range(
+            self.linhas - 1
+        ):  # -1 porque não pode colocar parede na última linha
+            for coluna in range(
+                self.colunas - 1
+            ):  # -1 porque não pode colocar parede na última coluna
                 # Verificar parede horizontal (impede movimento para baixo)
                 if not self.tabuleiro[linha][coluna].pode_mover_para_baixo:
                     paredes_horizontais.add((linha, coluna))
-                
+
                 # Verificar parede vertical (impede movimento para direita)
                 if not self.tabuleiro[linha][coluna].pode_mover_para_direita:
                     paredes_verticais.add((linha, coluna))
-        
+
         # Converter para frozenset para torná-los hashable
         paredes_h_frozen = frozenset(paredes_horizontais)
         paredes_v_frozen = frozenset(paredes_verticais)
-        
+
         # Criar a tupla de estado
-        estado_tupla = (pos_j1, pos_j2, paredes_h_frozen, paredes_v_frozen, 
-                       paredes_restantes_j1, paredes_restantes_j2, turno_idx)
-        
+        estado_tupla = (
+            pos_j1,
+            pos_j2,
+            paredes_h_frozen,
+            paredes_v_frozen,
+            paredes_restantes_j1,
+            paredes_restantes_j2,
+            turno_idx,
+        )
+
         return estado_tupla
 
     def calcular_utilidade(self, estado, jogador, **kwargs):
@@ -208,7 +232,6 @@ class JogoQuoridor:
                 estado, jogador, tabuleiro=self.tabuleiro, **kwargs
             )
         return calcular_utilidade(estado, jogador, **kwargs)
-
 
     def gerar_movimentos_possiveis(self, turno):
         return gerar_movimentos_possiveis(self, turno)
@@ -256,28 +279,38 @@ class JogoQuoridor:
                     direcao = "a"
                 elif nova_coluna > coluna_atual:
                     direcao = "d"
-            
+
             if direcao:
                 sucesso_movimento = self.andar(direcao, turno_idx)
             else:
                 sucesso_movimento = False
         elif tipo_movimento == "parede":
-            linha, coluna, orientacao = valor_movimento
-            # Converter linha e coluna para notação de alfabeto e número (ex: 'e5h')
-            coluna_letra = chr(ord('a') + coluna)
-            linha_numero = str(linha + 1)
-            notacao_parede = coluna_letra + linha_numero + orientacao
-            sucesso_movimento = self.colocar_parede(notacao_parede, turno_idx)
+            # O valor do movimento pode ser uma tupla (formato antigo) ou uma string (formato da IA/GUI)
+            if isinstance(valor_movimento, str):
+                notacao_parede = valor_movimento
+            elif isinstance(valor_movimento, tuple):
+                # Converte a tupla para a notação de string
+                linha, coluna, orientacao = valor_movimento
+                coluna_letra = chr(ord('a') + coluna)
+                linha_numero = str(linha + 1)
+                notacao_parede = coluna_letra + linha_numero + orientacao
+            else:
+                notacao_parede = None
+
+            if notacao_parede:
+                sucesso_movimento = self.colocar_parede(notacao_parede, turno_idx)
+            else:
+                sucesso_movimento = False
 
         if sucesso_movimento:
             # Após um movimento bem-sucedido, verifica se houve um vencedor
             self.verificar_vitoria()
 
         return sucesso_movimento
-        
+
     def get_acoes_validas(self, turno_idx):
         movimentos = gerar_movimentos_possiveis(self, turno_idx, ordenar=False)
-        
+
         # Converter movimentos para o formato de ação
         acoes = []
         for tipo, valor in movimentos:
@@ -285,30 +318,30 @@ class JogoQuoridor:
                 # Obter coordenadas do movimento
                 jogador = "J1" if turno_idx == 0 else "J2"
                 linha, coluna = self.jogadores[jogador]
-                
+
                 # Mapear direção para coordenadas
                 direcoes = {"w": (-1, 0), "s": (1, 0), "a": (0, -1), "d": (0, 1)}
                 d_linha, d_coluna = direcoes[valor]
                 nova_pos = (linha + d_linha, coluna + d_coluna)
-                
-                acoes.append(('mover', nova_pos))
-            elif tipo == "wall":
+
+                acoes.append(("mover", nova_pos))
+            elif tipo == "parede":
                 # Converter notação de parede para coordenadas
                 letra = valor[0]
                 numero = int(valor[1])
                 orientacao = valor[2]
-                
-                coluna = ord(letra) - ord('a')
+
+                coluna = ord(letra) - ord("a")
                 linha = numero - 1  # Ajuste para índice 0-based
-                
-                acoes.append(('parede', (linha, coluna, orientacao)))
-        
+
+                acoes.append(("parede", (linha, coluna, orientacao)))
+
         return acoes
-    
+
     def serializar_tabuleiro(self):
         """
         Cria uma cópia serializável do estado atual do tabuleiro para poder restaurá-lo depois.
-        
+
         Returns:
             dict: Um dicionário contendo o estado do tabuleiro, posições dos jogadores e paredes restantes
         """
@@ -319,41 +352,43 @@ class JogoQuoridor:
             for coluna in range(self.colunas):
                 square = self.tabuleiro[linha][coluna]
                 square_dict = {
-                    'pode_mover_para_cima': square.pode_mover_para_cima,
-                    'pode_mover_para_baixo': square.pode_mover_para_baixo,
-                    'pode_mover_para_esquerda': square.pode_mover_para_esquerda,
-                    'pode_mover_para_direita': square.pode_mover_para_direita,
-                    'tem_jogador': square.tem_jogador,
+                    "pode_mover_para_cima": square.pode_mover_para_cima,
+                    "pode_mover_para_baixo": square.pode_mover_para_baixo,
+                    "pode_mover_para_esquerda": square.pode_mover_para_esquerda,
+                    "pode_mover_para_direita": square.pode_mover_para_direita,
+                    "tem_jogador": square.tem_jogador,
                 }
                 linha_serializada.append(square_dict)
             tabuleiro_serializado.append(linha_serializada)
-            
+
         # Salvar posições dos jogadores e paredes restantes
         return {
-            'tabuleiro': tabuleiro_serializado,
-            'jogadores': self.jogadores.copy(),
-            'paredes_restantes': self.paredes_restantes.copy(),
+            "tabuleiro": tabuleiro_serializado,
+            "jogadores": self.jogadores.copy(),
+            "paredes_restantes": self.paredes_restantes.copy(),
         }
-        
+
     def restaurar_tabuleiro(self, estado_serializado):
         """
         Restaura o tabuleiro para um estado serializado anteriormente.
-        
+
         Args:
             estado_serializado (dict): Dicionário com o estado do tabuleiro criado por serializar_tabuleiro()
         """
         # Restaurar tabuleiro
         for linha in range(self.linhas):
             for coluna in range(self.colunas):
-                square_dict = estado_serializado['tabuleiro'][linha][coluna]
+                square_dict = estado_serializado["tabuleiro"][linha][coluna]
                 square = self.tabuleiro[linha][coluna]
-                
-                square.pode_mover_para_cima = square_dict['pode_mover_para_cima']
-                square.pode_mover_para_baixo = square_dict['pode_mover_para_baixo']
-                square.pode_mover_para_esquerda = square_dict['pode_mover_para_esquerda']
-                square.pode_mover_para_direita = square_dict['pode_mover_para_direita']
-                square.tem_jogador = square_dict['tem_jogador']
-                
+
+                square.pode_mover_para_cima = square_dict["pode_mover_para_cima"]
+                square.pode_mover_para_baixo = square_dict["pode_mover_para_baixo"]
+                square.pode_mover_para_esquerda = square_dict[
+                    "pode_mover_para_esquerda"
+                ]
+                square.pode_mover_para_direita = square_dict["pode_mover_para_direita"]
+                square.tem_jogador = square_dict["tem_jogador"]
+
         # Restaurar posições dos jogadores e paredes restantes
-        self.jogadores = estado_serializado['jogadores'].copy()
-        self.paredes_restantes = estado_serializado['paredes_restantes'].copy()
+        self.jogadores = estado_serializado["jogadores"].copy()
+        self.paredes_restantes = estado_serializado["paredes_restantes"].copy()
