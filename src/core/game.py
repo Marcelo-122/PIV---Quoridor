@@ -1,14 +1,37 @@
-from .paredes import colocar_parede
+import numpy as np
+
+from .constantes import COLUNAS, LINHAS
+from .movimento_util import gerar_movimentos_possiveis
 from .movimentos import andar
+from .paredes import colocar_parede
+from .square import Square
 from .utilidade import calcular_utilidade, shortest_path_length
 
-import numpy as np
-from .square import Square
-from .constantes import LINHAS, COLUNAS
-from .movimento_util import gerar_movimentos_possiveis
+# Constantes para Cálculo de Recompensa DQN Intermediária
+# Progresso Pessoal
+FATOR_PROGRESSO_PESSOAL = 30.0  # Multiplica a redução no caminho próprio
+FATOR_REGRESSO_PESSOAL = 25.0   # Multiplica o aumento no caminho próprio (penalidade)
+RECOMPENSA_DESBLOQUEIO_PROPRIO = 10.0 # Recompensa por encontrar um caminho quando antes estava bloqueado
+PENALIDADE_AUTOBLOQUEIO = -35.0      # Penalidade por se bloquear
 
-# No início da classe JogoQuoridor em src/core/game.py
+# Impacto no Oponente (principalmente por paredes)
+FATOR_PREJUIZO_OPONENTE = 15.0  # Multiplica o aumento no caminho do oponente
+FATOR_AJUDA_OPONENTE = 15.0     # Multiplica a redução no caminho do oponente (penalidade)
+RECOMPENSA_BLOQUEIO_OPONENTE = 25.0 # Recompensa por bloquear o oponente
+PENALIDADE_DESBLOQUEIO_OPONENTE = -35.0 # Penalidade se sua parede desbloqueou o oponente
 
+# Custos/Incentivos Base de Ação
+CUSTO_COLOCAR_PAREDE = -10.0  # Custo fixo por colocar uma parede
+RECOMPENSA_MOVER_PEAO = 5.0  # Incentivo fixo por mover um peão
+
+# Penalidade por usar paredes cedo demais
+PENALIDADE_PAREDE_CEDO = -5.0  # Penalidade adicional por colocar parede tendo muitas restantes
+# Se, APÓS colocar uma parede, o jogador ainda tiver o numero do limite, aplica-se a penalidade.
+# Ex: Se LIMITE = 8, e o jogador coloca uma parede e fica com 8 (tinha 9), ele é penalizado.
+LIMITE_PAREDES_PARA_PENALIDADE_CEDO = 8
+
+LIMITE_RECOMPENSA_INTERMEDIARIA_MIN = -30.0 # Para evitar que recompensas intermediárias sejam extremas
+LIMITE_RECOMPENSA_INTERMEDIARIA_MAX = 30.0
 
 class JogoQuoridor:
     def __init__(self):
@@ -47,31 +70,43 @@ class JogoQuoridor:
 
         if sucesso_colocacao_basica:
             # Verificar se algum jogador ficou sem caminho
-            path_j1_exists = shortest_path_length("J1", self.jogadores["J1"], self.tabuleiro) < 99 # 99 indica sem caminho
-            path_j2_exists = shortest_path_length("J2", self.jogadores["J2"], self.tabuleiro) < 99
+            path_j1_exists = (
+                shortest_path_length("J1", self.jogadores["J1"], self.tabuleiro) < 99
+            )  # 99 indica sem caminho
+            path_j2_exists = (
+                shortest_path_length("J2", self.jogadores["J2"], self.tabuleiro) < 99
+            )
 
             if not path_j1_exists or not path_j2_exists:
-                #print("Colocação de parede inválida: bloquearia o caminho de um jogador.")
+                # print("Colocação de parede inválida: bloquearia o caminho de um jogador.")
                 # Reverter a colocação da parede
                 letra_coluna, numero_linha, direcao_parede = notacao
-                col_idx = ord(letra_coluna) - ord('a')
+                col_idx = ord(letra_coluna) - ord("a")
                 linha_idx = int(numero_linha) - 1
 
-                if direcao_parede == 'h':
+                if direcao_parede == "h":
                     self.tabuleiro[linha_idx - 1][col_idx].pode_mover_para_baixo = True
-                    self.tabuleiro[linha_idx - 1][col_idx + 1].pode_mover_para_baixo = True
+                    self.tabuleiro[linha_idx - 1][
+                        col_idx + 1
+                    ].pode_mover_para_baixo = True
                     self.tabuleiro[linha_idx][col_idx].pode_mover_para_cima = True
                     self.tabuleiro[linha_idx][col_idx + 1].pode_mover_para_cima = True
-                elif direcao_parede == 'v':
-                    self.tabuleiro[linha_idx][col_idx - 1].pode_mover_para_direita = True
-                    self.tabuleiro[linha_idx + 1][col_idx - 1].pode_mover_para_direita = True
+                elif direcao_parede == "v":
+                    self.tabuleiro[linha_idx][
+                        col_idx - 1
+                    ].pode_mover_para_direita = True
+                    self.tabuleiro[linha_idx + 1][
+                        col_idx - 1
+                    ].pode_mover_para_direita = True
                     self.tabuleiro[linha_idx][col_idx].pode_mover_para_esquerda = True
-                    self.tabuleiro[linha_idx + 1][col_idx].pode_mover_para_esquerda = True
-                return False # Falha na colocação da parede
+                    self.tabuleiro[linha_idx + 1][
+                        col_idx
+                    ].pode_mover_para_esquerda = True
+                return False  # Falha na colocação da parede
             else:
                 # Se os caminhos existem, a colocação é válida
                 self.paredes_restantes[jogador] -= 1
-                return True # Sucesso na colocação da parede
+                return True  # Sucesso na colocação da parede
         else:
             # A colocação básica já falhou (sobreposição, cruzamento, etc.)
             return False
@@ -109,13 +144,15 @@ class JogoQuoridor:
             tuple(self.jogadores["J1"]),
             tuple(self.jogadores["J2"]),
             self.paredes_restantes["J1"],
-            self.paredes_restantes["J2"]
+            self.paredes_restantes["J2"],
         )
 
     def calcular_utilidade(self, estado, jogador, **kwargs):
         # Pass tabuleiro only if it's not already in kwargs
-        if 'tabuleiro' not in kwargs:
-            return calcular_utilidade(estado, jogador, tabuleiro=self.tabuleiro, **kwargs)
+        if "tabuleiro" not in kwargs:
+            return calcular_utilidade(
+                estado, jogador, tabuleiro=self.tabuleiro, **kwargs
+            )
         return calcular_utilidade(estado, jogador, **kwargs)
 
     def get_dqn_state_vector(self, turno):
@@ -163,77 +200,82 @@ class JogoQuoridor:
 
         return vetor_estado
 
-
     def calcular_recompensa_dqn(
         self, movimento, jogador_dqn, meu_caminho_antes, caminho_oponente_antes
     ):
         """
-        Calcula a recompensa para o agente DQN com base na MUDANÇA no estado do jogo.
+        Calcula a recompensa intermediária para o agente DQN com base na mudança no estado do jogo.
+        As recompensas de vitória/derrota/empate são tratadas separadamente no loop de treinamento.
 
         Args:
+            movimento (tuple or str): O movimento realizado. Ex: ('n', 'e', 's', 'w') ou ('a1h', 'b2v', etc.)
             jogador_dqn (str): O jogador DQN ("J1" ou "J2").
-            meu_caminho_antes (int): Comprimento do caminho do DQN antes do movimento.
-            caminho_oponente_antes (int): Comprimento do caminho do oponente antes do movimento.
+            meu_caminho_antes (int): Comprimento do caminho do DQN antes do movimento (99+ se bloqueado).
+            caminho_oponente_antes (int): Comprimento do caminho do oponente antes do movimento (99+ se bloqueado).
 
         Returns:
-            float: A recompensa calculada.
+            float: A recompensa intermediária calculada.
         """
-        vencedor = self.verificar_vitoria()
-        if self.jogo_terminado:
-            if vencedor == jogador_dqn:
-                return 100.0  # Recompensa máxima por vencer
-            elif vencedor is not None:
-                return -100.0  # Penalidade máxima por perder
-            else:
-                return 0.0
+        recompensa_total = 0.0
 
-        # Calcula os comprimentos dos caminhos DEPOIS do movimento
         oponente_dqn = "J2" if jogador_dqn == "J1" else "J1"
-        pos_minha = self.jogadores[jogador_dqn]
-        pos_oponente = self.jogadores[oponente_dqn]
+        pos_minha_depois = self.jogadores[jogador_dqn]
+        pos_oponente_depois = self.jogadores[oponente_dqn]
 
-        meu_caminho_depois = shortest_path_length(jogador_dqn, pos_minha, self.tabuleiro)
-        caminho_oponente_depois = shortest_path_length(
-            oponente_dqn, pos_oponente, self.tabuleiro
-        )
+        meu_caminho_depois = shortest_path_length(jogador_dqn, pos_minha_depois, self.tabuleiro)
+        caminho_oponente_depois = shortest_path_length(oponente_dqn, pos_oponente_depois, self.tabuleiro)
 
-        # Trata caminhos bloqueados (None)
-        if meu_caminho_depois is None:
-            meu_caminho_depois = 99
-        if caminho_oponente_depois is None:
-            caminho_oponente_depois = 99
-        if meu_caminho_antes is None:
-            meu_caminho_antes = 99
-        if caminho_oponente_antes is None:
-            caminho_oponente_antes = 99
+        # --- 1. Recompensa/Penalidade por Progresso/Regresso Pessoal ---
+        # Considera caminhos válidos (menor que 99)
+        if meu_caminho_depois < 99:  # Se o agente ainda tem um caminho
+            if meu_caminho_antes < 99:  # E tinha um caminho antes
+                diff_meu_caminho = meu_caminho_antes - meu_caminho_depois
+                if diff_meu_caminho > 0: # Progrediu
+                    recompensa_total += diff_meu_caminho * FATOR_PROGRESSO_PESSOAL
+                else: # Regrediu ou ficou no mesmo lugar (diff_meu_caminho <= 0)
+                    recompensa_total += diff_meu_caminho * FATOR_REGRESSO_PESSOAL # diff é negativo ou zero, FATOR_REGRESSO_PESSOAL é positivo
+            else:  # Não tinha caminho antes (>=99), mas agora tem (<99) (desbloqueou-se)
+                recompensa_total += RECOMPENSA_DESBLOQUEIO_PROPRIO
+        else:  # Agente não tem mais caminho (meu_caminho_depois >= 99)
+            if meu_caminho_antes < 99:  # Tinha um caminho antes, mas se bloqueou
+                recompensa_total += PENALIDADE_AUTOBLOQUEIO
 
-        # Calcula a MUDANÇA (delta) nos caminhos
-        delta_meu_caminho = meu_caminho_depois - meu_caminho_antes
-        delta_caminho_oponente = caminho_oponente_depois - caminho_oponente_antes
+        # --- 2. Recompensa/Penalidade por Impacto no Oponente e Custo da Ação ---
+        # Verifica se o movimento foi uma parede: tupla ('a','1','h')
+        foi_parede = isinstance(movimento, tuple) and len(movimento) == 3 and \
+                     isinstance(movimento[0], str) and isinstance(movimento[1], str) and \
+                     isinstance(movimento[2], str)
 
-        # Recompensa baseada nos deltas: incentiva diminuir nosso caminho e aumentar o do oponente
-        recompensa = 0
+        if foi_parede:
+            recompensa_total += CUSTO_COLOCAR_PAREDE
 
-        # Incentivar o bloqueio do oponente (tão importante quanto avançar)
-        recompensa += delta_caminho_oponente * 1.8
+            # --- Penalidade Adicional por Usar Parede Cedo ---
+            # self.paredes_restantes[jogador_dqn] aqui é o valor APÓS a parede ser colocada.
+            if self.paredes_restantes[jogador_dqn] >= LIMITE_PAREDES_PARA_PENALIDADE_CEDO:
+                recompensa_total += PENALIDADE_PAREDE_CEDO
+                # Opcional: print para debug
+                # print(f"    [{jogador_dqn} Penalidade Parede Cedo Aplicada] Paredes restantes: {self.paredes_restantes[jogador_dqn]} >= {LIMITE_PAREDES_PARA_PENALIDADE_CEDO}")
+            # --- Fim da Penalidade Adicional ---
 
-        # Incentivar o avanço do próprio peão (maior prioridade)
-        recompensa -= delta_meu_caminho * 2.0
+            if caminho_oponente_depois < 99: # Se oponente ainda tem caminho
+                if caminho_oponente_antes < 99: # E oponente tinha caminho antes
+                    diff_caminho_oponente = caminho_oponente_depois - caminho_oponente_antes # Positivo se caminho do oponente aumentou
+                    if diff_caminho_oponente > 0: # Prejudicou o oponente (caminho dele aumentou)
+                        recompensa_total += diff_caminho_oponente * FATOR_PREJUIZO_OPONENTE
+                    else: # Ajudou o oponente ou não afetou (caminho dele diminuiu ou manteve)
+                        recompensa_total += diff_caminho_oponente * FATOR_AJUDA_OPONENTE # diff é negativo ou zero
+                else: # Oponente não tinha caminho (>=99), mas sua parede o desbloqueou (<99) (muito ruim)
+                    recompensa_total += PENALIDADE_DESBLOQUEIO_OPONENTE
+            else: # Oponente não tem mais caminho (caminho_oponente_depois >= 99)
+                if caminho_oponente_antes < 99: # Oponente tinha caminho, mas foi bloqueado pela parede
+                    recompensa_total += RECOMPENSA_BLOQUEIO_OPONENTE
+        else:  # Foi movimento de peão
+            recompensa_total += RECOMPENSA_MOVER_PEAO
 
-        # Penalidade por usar uma parede, diferenciando entre úteis e inúteis.
-        tipo_movimento, _ = movimento
-        if tipo_movimento == 'wall':
-            # Se a parede for inútil (não aumenta o caminho do oponente), a penalidade é massiva.
-            if delta_caminho_oponente <= 0:
-                recompensa -= 3  # Penalidade por desperdiçar um recurso E um turno.
-            else:
-                # Se a parede for útil, aplicamos apenas o custo de oportunidade.
-                recompensa -= 0.5
+        # Limitar a recompensa intermediária para não ofuscar as recompensas terminais
+        recompensa_total = np.clip(recompensa_total, LIMITE_RECOMPENSA_INTERMEDIARIA_MIN, LIMITE_RECOMPENSA_INTERMEDIARIA_MAX)
 
-        # Adiciona uma pequena penalidade constante a cada movimento para incentivar a eficiência
-        recompensa -= 0.01
-
-        return recompensa
+        return recompensa_total
 
     def gerar_movimentos_possiveis(self, turno):
         return gerar_movimentos_possiveis(self, turno)

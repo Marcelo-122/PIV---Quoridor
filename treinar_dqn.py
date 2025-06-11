@@ -14,7 +14,7 @@ if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
 # --- Configurações e Hiperparâmetros ---
-NUM_EPISODIOS = 1000  # Reduzido para teste rápido coloque 10, para a apresentaçao vai ser 1000
+NUM_EPISODIOS = 110  # Reduzido para teste rápido coloque 10, para a apresentaçao vai ser 1000
 MODO_TREINAMENTO = "self_play"  # Opções: 'self_play' ou 'vs_minimax' para o treinamento
 
 # Parâmetros para AgenteDQN
@@ -43,6 +43,9 @@ CARREGAR_MODELO_J2_SELFPLAY = False  # Se MODO_TREINAMENTO == 'self_play'
 CAMINHO_MODELO_J2_CARREGAR = f"{PASTA_MODELOS}/modelo_j2_episodio_XXXX.h5"
 
 MAX_MOVIMENTOS_POR_EPISODIO = 250  # Para evitar jogos excessivamente longos
+
+PENALIDADE_REPETICAO = -5.0  # Penalidade por movimento repetitivo sem progresso
+JANELA_HISTORICO_REPETICAO = 5  # Quantos dos últimos (pos_j1, pos_j2, meu_caminho) lembrar
 
 
 # --- Wrapper para o Agente Minimax ---
@@ -145,6 +148,10 @@ def treinar():
     print("[DEBUG] Antes do loop de episódios", flush=True)
     for episodio in range(1, NUM_EPISODIOS + 1):
         jogo.resetar_jogo()
+        # Para rastrear repetições dentro do episódio
+        historico_posicoes_caminhos_j1 = [] # Lista de tuplas: (pos_j1, pos_j2, meu_caminho_j1)
+        if MODO_TREINAMENTO == "self_play":
+            historico_posicoes_caminhos_j2 = [] # Lista de tuplas: (pos_j2, pos_j1, meu_caminho_j2)
         print(f"\n--- Episódio {episodio} ---")
         estado_j1 = jogo.get_dqn_state_vector(0)  # Turno 0 para J1
         if MODO_TREINAMENTO == "self_play":
@@ -183,6 +190,31 @@ def treinar():
             recompensa_j1 = jogo.calcular_recompensa_dqn(
                 movimento_j1, "J1", meu_caminho_antes_j1, caminho_oponente_antes_j1
             )
+
+            # --- Lógica de Penalidade por Repetição para J1 ---
+            penalidade_por_repeticao_j1 = 0.0
+            pos_atual_j1_tupla = tuple(jogo.jogadores["J1"])
+            pos_atual_oponente_para_j1_tupla = tuple(jogo.jogadores["J2"])
+            caminho_atual_j1_apos_mov = shortest_path_length("J1", jogo.jogadores["J1"], jogo.tabuleiro)
+
+            for i in range(len(historico_posicoes_caminhos_j1) -1, -1, -1):
+                if len(historico_posicoes_caminhos_j1) - i > JANELA_HISTORICO_REPETICAO:
+                    break
+                
+                pos_ant_j1, pos_ant_op_j1, caminho_ant_j1 = historico_posicoes_caminhos_j1[i]
+                if pos_atual_j1_tupla == pos_ant_j1 and pos_atual_oponente_para_j1_tupla == pos_ant_op_j1:
+                    if caminho_atual_j1_apos_mov >= caminho_ant_j1: # Não houve melhora no caminho
+                        penalidade_por_repeticao_j1 = PENALIDADE_REPETICAO
+                        print(f"    [J1 Repetição Penalizada] Posições: {pos_atual_j1_tupla},{pos_atual_oponente_para_j1_tupla}. Caminho atual: {caminho_atual_j1_apos_mov}, Caminho anterior: {caminho_ant_j1}")
+                        break
+            
+            recompensa_j1 += penalidade_por_repeticao_j1
+
+            historico_posicoes_caminhos_j1.append((pos_atual_j1_tupla, pos_atual_oponente_para_j1_tupla, caminho_atual_j1_apos_mov))
+            if len(historico_posicoes_caminhos_j1) > JANELA_HISTORICO_REPETICAO + 5: 
+                historico_posicoes_caminhos_j1.pop(0)
+            # --- Fim da Lógica de Penalidade por Repetição para J1 ---
+
             proximo_estado_j1 = jogo.get_dqn_state_vector(0)
             terminado = jogo.jogo_terminado or num_movimentos_episodio >= MAX_MOVIMENTOS_POR_EPISODIO
 
@@ -227,8 +259,55 @@ def treinar():
                 recompensa_j2 = jogo.calcular_recompensa_dqn(
                     movimento_j2, "J2", meu_caminho_antes_j2, caminho_oponente_antes_j2
                 )
+
+                # --- Lógica de Penalidade por Repetição para J2 ---
+                penalidade_por_repeticao_j2 = 0.0
+                pos_atual_j2_tupla = tuple(jogo.jogadores["J2"])
+                pos_atual_oponente_para_j2_tupla = tuple(jogo.jogadores["J1"])
+                caminho_atual_j2_apos_mov = shortest_path_length("J2", jogo.jogadores["J2"], jogo.tabuleiro)
+
+                for i in range(len(historico_posicoes_caminhos_j2) -1, -1, -1):
+                    if len(historico_posicoes_caminhos_j2) - i > JANELA_HISTORICO_REPETICAO:
+                        break
+                    
+                    pos_ant_j2, pos_ant_op_j2, caminho_ant_j2 = historico_posicoes_caminhos_j2[i]
+                    if pos_atual_j2_tupla == pos_ant_j2 and pos_atual_oponente_para_j2_tupla == pos_ant_op_j2:
+                        if caminho_atual_j2_apos_mov >= caminho_ant_j2: # Não houve melhora
+                            penalidade_por_repeticao_j2 = PENALIDADE_REPETICAO
+                            print(f"    [J2 Repetição Penalizada] Posições: {pos_atual_j2_tupla},{pos_atual_oponente_para_j2_tupla}. Caminho atual: {caminho_atual_j2_apos_mov}, Caminho anterior: {caminho_ant_j2}")
+                            break
+                
+                recompensa_j2 += penalidade_por_repeticao_j2
+
+                historico_posicoes_caminhos_j2.append((pos_atual_j2_tupla, pos_atual_oponente_para_j2_tupla, caminho_atual_j2_apos_mov))
+                if len(historico_posicoes_caminhos_j2) > JANELA_HISTORICO_REPETICAO + 5:
+                    historico_posicoes_caminhos_j2.pop(0)
+                # --- Fim da Lógica de Penalidade por Repetição para J2 ---
+
                 proximo_estado_j2 = jogo.get_dqn_state_vector(1)
                 terminado = jogo.jogo_terminado or num_movimentos_episodio >= MAX_MOVIMENTOS_POR_EPISODIO
+
+                # --- INÍCIO DO BLOCO DE DEBUG J2 ---
+                # Neste ponto, 'recompensa_j2' contém a recompensa intermediária + penalidade de repetição.
+                # 'terminado' reflete o estado do jogo APÓS o movimento atual de J2.
+                print(f"                [DEBUG J2] Movimento: {movimento_j2}")
+                # Para mostrar a recompensa original de game.py, subtraímos a penalidade de repetição que já foi somada
+                recompensa_de_game_py = recompensa_j2 - penalidade_por_repeticao_j2
+                print(f"                [DEBUG J2] Recompensa Bruta (de game.py): {recompensa_de_game_py:.2f}")
+                print(f"                [DEBUG J2] Penalidade Repetição Aplicada: {penalidade_por_repeticao_j2:.2f}")
+                print(f"                [DEBUG J2] Recompensa J2 (após repetição, ANTES da recompensa terminal): {recompensa_j2:.2f}")
+                
+                if terminado: # 'terminado' é o da linha acima, reflete o estado atual
+                    # Esta é uma simulação da recompensa terminal para fins de debug, baseada na lógica que se seguirá
+                    recompensa_terminal_para_debug = 0
+                    if jogo.vencedor == "J2":
+                        recompensa_terminal_para_debug = 20 # Idealmente, usar constante (ex: RECOMPENSA_VITORIA_JOGO)
+                    elif jogo.vencedor == "J1":
+                        recompensa_terminal_para_debug = -20 # Idealmente, usar constante (ex: PENALIDADE_DERROTA_JOGO)
+                    else: # Jogo terminou sem vencedor (limite de movimentos)
+                        recompensa_terminal_para_debug = -20 # Idealmente, usar constante (ex: PENALIDADE_TIMEOUT_JOGO)
+                    print(f"                [DEBUG J2] Recompensa Terminal (que SERÁ adicionada na prox. etapa): {recompensa_terminal_para_debug}")
+                # --- FIM DO BLOCO DE DEBUG J2 ---
 
                 # Adiciona recompensa terminal (vitória, derrota ou empate/timeout)
                 if terminado:

@@ -5,32 +5,32 @@ def andar(self, direcao, turno):
     movimentos = {"w": (-1, 0), "s": (1, 0), "a": (0, -1), "d": (0, 1)}
 
     if direcao not in movimentos:
-        print("Movimento inválido! Use 'w', 'a', 's' ou 'd'.")
+        #print("Movimento inválido! Use 'w', 'a', 's' ou 'd'.")
         return False
 
     d_linha, d_coluna = movimentos[direcao]
     nova_linha, nova_coluna = linha + d_linha, coluna + d_coluna
 
     if not (0 <= nova_linha < 9 and 0 <= nova_coluna < 9):
-        print("Movimento fora dos limites!")
+        #print("Movimento fora dos limites!")
         return False
 
     # Verifica se há paredes bloqueando o caminho
     if direcao == "w":
         if linha == 0 or not self.tabuleiro[linha][coluna].pode_mover_para_cima:
-            print("Há uma parede bloqueando o caminho!")
+            #print("Há uma parede bloqueando o caminho!")
             return False
     if direcao == "s":
         if linha == 8 or not self.tabuleiro[linha][coluna].pode_mover_para_baixo:
-            print("Há uma parede bloqueando o caminho!")
+           # print("Há uma parede bloqueando o caminho!")
             return False
     if direcao == "a":
         if coluna == 0 or not self.tabuleiro[linha][coluna].pode_mover_para_esquerda:
-            print("Há uma parede bloqueando o caminho!")
+           # print("Há uma parede bloqueando o caminho!")
             return False
     if direcao == "d":
         if coluna == 8 or not self.tabuleiro[linha][coluna].pode_mover_para_direita:
-            print("Há uma parede bloqueando o caminho!")
+           # print("Há uma parede bloqueando o caminho!")
             return False
 
     # Atualiza o tabuleiro se ele existir
