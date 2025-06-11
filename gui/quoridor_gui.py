@@ -215,7 +215,7 @@ class QuoridorGUI:
             return  # Fim do update, o jogo acabou.
 
         # Log de depuração para verificar o estado do turno e dos jogadores humanos
-        print(f"[DEBUG] Verificando turno: self.turno={self.turno}, self.human_players={self.human_players}")
+        #print(f"[DEBUG] Verificando turno: self.turno={self.turno}, self.human_players={self.human_players}")
 
         if self.turno not in self.human_players and not self.ai_is_thinking:
             self._ai_turn()
