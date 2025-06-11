@@ -291,7 +291,7 @@ class JogoQuoridor:
             elif isinstance(valor_movimento, tuple):
                 # Converte a tupla para a notação de string
                 linha, coluna, orientacao = valor_movimento
-                coluna_letra = chr(ord('a') + coluna)
+                coluna_letra = chr(ord("a") + coluna)
                 linha_numero = str(linha + 1)
                 notacao_parede = coluna_letra + linha_numero + orientacao
             else:
@@ -314,7 +314,7 @@ class JogoQuoridor:
         # Converter movimentos para o formato de ação
         acoes = []
         for tipo, valor in movimentos:
-            if tipo == "move":
+            if tipo == "mover":
                 # Obter coordenadas do movimento
                 jogador = "J1" if turno_idx == 0 else "J2"
                 linha, coluna = self.jogadores[jogador]
