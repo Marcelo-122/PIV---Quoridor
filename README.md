@@ -54,6 +54,7 @@ PIV---Quoridor/
 
 - Python 3.x
 - Numpy 1.24.4
+- Pygame 2.6.1
 
 ## Como Executar
 
@@ -69,11 +70,3 @@ PIV---Quoridor/
    ```bash
    python main.py
    ```
-
-## Contribuição
-
-Sinta-se à vontade para contribuir com o projeto. Para isso, faça um fork do repositório, crie uma nova branch para suas alterações e envie um pull request.
-
-## Licença
-
-Este projeto está licenciado sob a Licença MIT. Veja o arquivo [LICENSE](LICENSE) para mais detalhes.
