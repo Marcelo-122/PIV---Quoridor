@@ -50,6 +50,10 @@ PIV---Quoridor/
 - **Função de utilidade sofisticada**: Considera comprimentos de caminho, contagem de paredes e qualidade de movimento.
 - **Q-Learning Tabular**: Implementação do algoritmo Q-Learning otimizado para o jogo Quoridor.
 
+## Observação
+
+A implementação do jogo 9x9 e o MinMax se encontram na branch com o nome de "MinMax", no main se encontram a impletação do Q-Learning 5x5 juntamente com um MinMax 5x5.
+
 ## Requisitos
 
 - Python 3.x
