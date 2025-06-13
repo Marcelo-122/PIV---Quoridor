@@ -116,8 +116,12 @@ class QuoridorGUI:
         elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1 and self.colocando_parede:
             if self.parede_temp_pos:
                 col, row = self.parede_temp_pos
-                letra_coluna = chr(ord('a') + col)
-                numero_linha = str(row + 1)
+                if self.parede_orientacao == 'h':
+                    letra_coluna = chr(ord('a') + col)
+                    numero_linha = str(row + 1)
+                else: # 'v'
+                    letra_coluna = chr(ord('a') + col + 1) # A coluna da parede vertical é a da célula à direita
+                    numero_linha = str(row + 1)
                 movimento_tupla = ('wall', (letra_coluna, numero_linha, self.parede_orientacao))
 
                 if self.jogo.aplicar_movimento(movimento_tupla, self.turno):
